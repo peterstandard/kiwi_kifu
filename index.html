@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SimpleKifu - Go SGF Recorder</title>
+  <meta name="description" content="Fast, lightweight, mobile-friendly Go SGF editor and kifu recorder.">
+  <meta name="theme-color" content="#1e2022">
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="style.css?v=8">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='46' fill='%23e4b368' stroke='%23333' stroke-width='4'/><circle cx='38' cy='45' r='18' fill='%23111'/><circle cx='62' cy='55' r='18' fill='%23fff' stroke='%23bbb' stroke-width='1'/></svg>">
+</head>
+<body>
+  <div id="app">
+    <!-- Header -->
+    <header class="top-nav">
+      <div class="brand">
+        <span class="logo-icon">⚫⚪</span>
+        <h1 class="logo-title">SimpleKifu</h1>
+      </div>
+      <div class="game-meta-badge" id="game-meta-badge" title="Click to edit game info">
+        <span id="badge-black-name">Black</span> vs <span id="badge-white-name">White</span>
+      </div>
+      <div class="top-actions">
+        <button id="btn-menu-toggle" class="icon-btn menu-btn" title="Menu" aria-label="Menu">
+          <span class="hamburger-icon">☰</span>
+          <span id="wake-dot-indicator" class="wake-dot-indicator hidden" title="Screen awake is active"></span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Dropdown Menu -->
+    <div id="dropdown-menu" class="dropdown-menu hidden">
+      <div class="menu-item" id="menu-item-share">
+        <span class="menu-icon">📤</span>
+        <span class="menu-text">Share Kifu (QR & Link)</span>
+      </div>
+      <div class="menu-item" id="menu-item-wake">
+        <span class="menu-icon">☕</span>
+        <span class="menu-text">Keep Screen Awake</span>
+        <span class="menu-badge" id="menu-wake-status">OFF</span>
+      </div>
+      <div class="menu-item" id="menu-item-sound">
+        <span class="menu-icon" id="menu-sound-icon">🔊</span>
+        <span class="menu-text">Stone Sound</span>
+        <span class="menu-badge" id="menu-sound-status">ON</span>
+      </div>
+      <div class="menu-divider"></div>
+      <div class="menu-item" id="menu-item-info">
+        <span class="menu-icon">ℹ️</span>
+        <span class="menu-text">Game Information</span>
+      </div>
+      <div class="menu-item" id="menu-item-sgf">
+        <span class="menu-icon">📜</span>
+        <span class="menu-text">Export / Import SGF</span>
+      </div>
+      <div class="menu-item" id="menu-item-library">
+        <span class="menu-icon">📁</span>
+        <span class="menu-text">Saved Games</span>
+      </div>
+    </div>
+
+    <!-- Status & Info Bar -->
+    <div class="status-bar">
+      <div class="turn-indicator" id="turn-indicator">
+        <span class="stone-dot black" id="turn-dot"></span>
+        <span class="turn-text" id="turn-text">Black's turn</span>
+      </div>
+      <div class="move-info">
+        <span id="move-counter">Move 0</span>
+        <span class="separator">•</span>
+        <span id="last-move-coord">-</span>
+      </div>
+      <div class="captures-counter">
+        <span title="Stones captured by Black">⚫ <span id="caps-black">0</span></span>
+        <span class="separator">|</span>
+        <span title="Stones captured by White">⚪ <span id="caps-white">0</span></span>
+      </div>
+    </div>
+
+    <!-- Board Area -->
+    <main class="board-container" id="board-container">
+      <div class="board-aspect-box">
+        <svg id="go-board" class="go-board-svg" viewBox="0 0 596 596" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="wood-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#e8be78" />
+              <stop offset="50%" stop-color="#dfa964" />
+              <stop offset="100%" stop-color="#d39b4f" />
+            </linearGradient>
+            <radialGradient id="black-grad" cx="35%" cy="30%" r="65%">
+              <stop offset="0%" stop-color="#5a5a5a" />
+              <stop offset="45%" stop-color="#222222" />
+              <stop offset="100%" stop-color="#050505" />
+            </radialGradient>
+            <radialGradient id="white-grad" cx="30%" cy="25%" r="70%">
+              <stop offset="0%" stop-color="#ffffff" />
+              <stop offset="60%" stop-color="#eeeeee" />
+              <stop offset="90%" stop-color="#d4d4d4" />
+              <stop offset="100%" stop-color="#b0b0b0" />
+            </radialGradient>
+            <filter id="stone-shadow" x="-20%" y="-20%" width="145%" height="145%">
+              <feDropShadow dx="1" dy="2.5" stdDeviation="1.8" flood-opacity="0.38" />
+            </filter>
+            <filter id="ghost-shadow" x="-20%" y="-20%" width="140%" height="140%">
+              <feDropShadow dx="0" dy="1" stdDeviation="1" flood-opacity="0.2" />
+            </filter>
+          </defs>
+          <g id="board-zoom-group">
+            <g id="board-wood"></g>
+            <g id="board-grid"></g>
+            <g id="board-coords"></g>
+            <g id="board-star-points"></g>
+            <g id="board-stones"></g>
+            <g id="board-markers"></g>
+            <g id="board-interactive"></g>
+          </g>
+        </svg>
+        <div class="zoom-floating-controls" id="zoom-controls">
+          <button id="btn-zoom-in" class="zoom-mini-btn" title="Zoom in" aria-label="Zoom in">+</button>
+          <button id="btn-zoom-out" class="zoom-mini-btn" title="Zoom out" aria-label="Zoom out">&minus;</button>
+          <button id="btn-zoom-reset" class="zoom-mini-btn zoom-reset-btn hidden" title="Reset zoom" aria-label="Reset zoom">1&times;</button>
+        </div>
+      </div>
+    </main>
+
+    <!-- Tap Confirm Bar (appears only when Confirm Mode is enabled) -->
+    <div id="confirm-bar" class="confirm-bar hidden">
+      <span id="confirm-coord-text">Play at D4?</span>
+      <div class="confirm-actions">
+        <button id="btn-cancel-tap" class="btn btn-secondary btn-sm">Cancel</button>
+        <button id="btn-confirm-tap" class="btn btn-primary btn-sm">Confirm Stone</button>
+      </div>
+    </div>
+
+    <!-- Comment Bar -->
+    <div class="comment-bar">
+      <input type="text" id="move-comment-input" placeholder="Add comment for current move..." maxlength="200" autocomplete="off">
+    </div>
+
+    <!-- Primary Controls -->
+    <footer class="bottom-controls">
+      <div class="nav-button-group">
+        <button id="btn-first" class="ctrl-btn" title="First Move (Home)">⏮</button>
+        <button id="btn-undo" class="ctrl-btn ctrl-btn-primary" title="Undo Move (Left Arrow)">
+          <span class="btn-icon">◀</span>
+          <span class="btn-label">Undo</span>
+        </button>
+        <button id="btn-pass" class="ctrl-btn ctrl-btn-accent" title="Pass Turn (Space)">
+          <span class="btn-icon">⏸</span>
+          <span class="btn-label">Pass</span>
+        </button>
+        <button id="btn-redo" class="ctrl-btn ctrl-btn-primary" title="Redo Move (Right Arrow)">
+          <span class="btn-label">Redo</span>
+          <span class="btn-icon">▶</span>
+        </button>
+        <button id="btn-last" class="ctrl-btn" title="Last Move (End)">⏭</button>
+      </div>
+
+      <!-- Quick Toggles -->
+      <div class="quick-toggles">
+        <button id="btn-toggle-numbers" class="toggle-btn" title="Toggle Move Numbers">
+          Numbers: <strong id="numbers-status">Last 1</strong>
+        </button>
+        <button id="btn-toggle-tapmode" class="toggle-btn" title="Instant tap or Tap & Confirm">
+          Tap: <strong id="tapmode-status">Instant</strong>
+        </button>
+        <button id="btn-new-game" class="toggle-btn danger" title="Start a fresh game">
+          + New Game
+        </button>
+      </div>
+    </footer>
+  </div>
+
+  <!-- Game Info Modal -->
+  <div id="modal-info" class="modal-backdrop hidden">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h2>Game Information</h2>
+        <button class="modal-close" data-close="modal-info">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="input-black-name">Black Player</label>
+            <input type="text" id="input-black-name" value="Black" placeholder="Name">
+          </div>
+          <div class="form-group">
+            <label for="input-black-rank">Black Rank</label>
+            <input type="text" id="input-black-rank" placeholder="e.g. 3k, 1d">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="input-white-name">White Player</label>
+            <input type="text" id="input-white-name" value="White" placeholder="Name">
+          </div>
+          <div class="form-group">
+            <label for="input-white-rank">White Rank</label>
+            <input type="text" id="input-white-rank" placeholder="e.g. 2k, 2d">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="input-board-size">Board Size</label>
+            <select id="input-board-size">
+              <option value="19" selected>19 × 19</option>
+              <option value="13">13 × 13</option>
+              <option value="9">9 × 9</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="input-handicap">Handicap</label>
+            <select id="input-handicap">
+              <option value="0" selected>Even (0)</option>
+              <option value="2">2 Stones</option>
+              <option value="3">3 Stones</option>
+              <option value="4">4 Stones</option>
+              <option value="5">5 Stones</option>
+              <option value="6">6 Stones</option>
+              <option value="7">7 Stones</option>
+              <option value="8">8 Stones</option>
+              <option value="9">9 Stones</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="input-komi">Komi</label>
+            <input type="number" id="input-komi" step="0.5" value="6.5">
+          </div>
+          <div class="form-group">
+            <label for="input-game-date">Date</label>
+            <input type="date" id="input-game-date">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="input-event-name">Event / Club</label>
+            <input type="text" id="input-event-name" placeholder="e.g. Weekly Go Club">
+          </div>
+          <div class="form-group">
+            <label for="input-result">Result</label>
+            <input type="text" id="input-result" placeholder="e.g. B+R, W+3.5">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" id="btn-save-info">Save Info</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SGF Export / Import Modal -->
+  <div id="modal-sgf" class="modal-backdrop hidden">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h2>SGF Export & Import</h2>
+        <button class="modal-close" data-close="modal-sgf">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="sgf-actions-bar">
+          <button id="btn-copy-sgf" class="btn btn-primary">📋 Copy SGF</button>
+          <button id="btn-download-sgf" class="btn btn-secondary">💾 Download .sgf</button>
+          <label class="btn btn-secondary upload-btn-label">
+            📂 Open File <input type="file" id="input-file-sgf" accept=".sgf,.txt" style="display:none;">
+          </label>
+        </div>
+        <div class="form-group">
+          <label for="textarea-sgf">SGF Data</label>
+          <textarea id="textarea-sgf" rows="9" spellcheck="false" placeholder="(;GM[1]SZ[19]...)"></textarea>
+        </div>
+        <div class="modal-load-action">
+          <button id="btn-load-sgf-text" class="btn btn-accent">Load Pasted SGF</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Library Modal -->
+  <div id="modal-library" class="modal-backdrop hidden">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h2>Saved Games</h2>
+        <button class="modal-close" data-close="modal-library">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p class="section-note">Games are automatically kept in your browser storage.</p>
+        <div id="saved-games-list" class="saved-games-list">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="btn-clear-library" class="btn btn-danger-outline btn-sm">Clear All</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Share Modal (QR Code & Direct Link) -->
+  <div id="modal-share" class="modal-backdrop hidden">
+    <div class="modal-dialog modal-share-dialog">
+      <div class="modal-header">
+        <h2>Share Kifu</h2>
+        <button class="modal-close" data-close="modal-share">&times;</button>
+      </div>
+      <div class="modal-body text-center">
+        <p class="section-note">Scan with a phone camera to open this game immediately:</p>
+        <div id="qr-code-container" class="qr-code-container">
+          <!-- QR SVG injected here -->
+        </div>
+        <div class="share-actions-group">
+          <button id="btn-copy-share-link" class="btn btn-primary">🔗 Copy Share Link</button>
+          <button id="btn-native-share" class="btn btn-accent hidden">📲 Share Sheet...</button>
+        </div>
+        <div class="share-url-box">
+          <input type="text" id="input-share-url" readonly onclick="this.select();">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast notification -->
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="qrcode.min.js"></script>
+  <script type="module" src="js/main.js?v=8"></script>
+</body>
+</html>

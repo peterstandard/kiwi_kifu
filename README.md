@@ -1,4 +1,4 @@
-# 🥝 Kifu Kiwi (SimpleKifu)
+# 🥝 Kiwi Kifu
 
 A lightweight, mobile-first web Go (Weiqi / igo / Baduk) SGF recorder and editor designed for recording games in real-time at Go clubs.
 
@@ -33,7 +33,7 @@ Built with **Zero Build Tools** using modern native Browser ES Modules (`<script
 ## Project Structure
 
 ```text
-kifu_kiwi/
+kiwi_kifu/
 ├── index.html              # Clean semantic HTML5 layout & SVG board
 ├── style.css               # Responsive dark theme UI
 ├── sw.js                   # Service worker for offline PWA caching

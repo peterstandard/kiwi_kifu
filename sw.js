@@ -1,4 +1,4 @@
-const CACHE_NAME = 'simplekifu-v8';
+const CACHE_NAME = 'kiwikifu-v1';
 const ASSETS = [
   './',
   './index.html',
@@ -14,7 +14,9 @@ const ASSETS = [
   './js/board/gestures.js',
   './js/services/storage.js',
   './js/services/wakelock.js',
-  './js/services/share.js'
+  './js/services/share.js',
+  './kiwi_kifu_square.png',
+  './kiwi_kifu_stones.png'
 ];
 
 self.addEventListener('install', (e) => {

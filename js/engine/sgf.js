@@ -35,7 +35,7 @@ export function unescapeSgf(str) {
 }
 
 export function serializeGameToSgf(game) {
-  let sgf = '(;GM[1]FF[4]CA[UTF-8]AP[SimpleKifu:1.0]\n';
+  let sgf = '(;GM[1]FF[4]CA[UTF-8]AP[KiwiKifu:1.0]\n';
   sgf += `SZ[${game.size}]\n`;
   sgf += `KM[${game.info.komi || 6.5}]\n`;
   sgf += `RU[${game.info.rules || 'Japanese'}]\n`;

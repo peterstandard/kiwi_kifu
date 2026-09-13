@@ -5,8 +5,8 @@ set -e
 echo "Running engine tests..."
 node test.js
 
-# 2. Target public directory (defaults to ~/www/simplekifu)
-TARGET_DIR="${1:-/home/tashi/www/simplekifu}"
+# 2. Target public directory (defaults to ~/www/kiwikifu)
+TARGET_DIR="${1:-/home/tashi/www/kiwikifu}"
 
 echo "Syncing production files to $TARGET_DIR..."
 

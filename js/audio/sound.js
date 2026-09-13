@@ -1,17 +1,19 @@
 /**
- * SimpleKifu - Synthesized Acoustic Go Audio Effects (Web Audio API)
+ * Kiwi Kifu - Synthesized Acoustic Go Audio Effects (Web Audio API)
  */
 
 export class SoundFX {
   constructor() {
     this.ctx = null;
-    this.enabled = typeof localStorage !== 'undefined' ? localStorage.getItem('simplekifu_sound') !== 'false' : true;
+    this.enabled = typeof localStorage !== 'undefined' ?
+      (localStorage.getItem('kiwikifu_sound') !== null ? localStorage.getItem('kiwikifu_sound') !== 'false' : localStorage.getItem('simplekifu_sound') !== 'false')
+      : true;
   }
 
   toggle() {
     this.enabled = !this.enabled;
     if (typeof localStorage !== 'undefined') {
-      localStorage.setItem('simplekifu_sound', this.enabled ? 'true' : 'false');
+      localStorage.setItem('kiwikifu_sound', this.enabled ? 'true' : 'false');
     }
     if (this.enabled) {
       this.playStone();

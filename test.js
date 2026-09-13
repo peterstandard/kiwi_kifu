@@ -1,5 +1,5 @@
 /**
- * SimpleKifu - Core Go Rules & SGF Invariant Tests
+ * Kiwi Kifu - Core Go Rules & SGF Invariant Tests
  * Run with: node test.js
  */
 
@@ -20,7 +20,7 @@ function test(name, fn) {
   }
 }
 
-console.log('\n--- SimpleKifu Engine Tests ---');
+console.log('\n--- Kiwi Kifu Engine Tests ---');
 
 test('Coordinate & SGF translations', () => {
   assert.strictEqual(coordToSgf(0, 0), 'aa');

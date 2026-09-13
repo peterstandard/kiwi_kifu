@@ -1,6 +1,6 @@
 {
-  "name": "SimpleKifu",
-  "short_name": "SimpleKifu",
+  "name": "Kiwi Kifu",
+  "short_name": "Kiwi Kifu",
   "description": "Fast, lightweight Go SGF editor and kifu recorder",
   "start_url": "./index.html",
   "display": "standalone",
@@ -8,9 +8,9 @@
   "theme_color": "#18191c",
   "icons": [
     {
-      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='46' fill='%23e4b368' stroke='%23333' stroke-width='4'/><circle cx='38' cy='45' r='18' fill='%23111'/><circle cx='62' cy='55' r='18' fill='%23fff' stroke='%23bbb' stroke-width='1'/></svg>",
+      "src": "kiwi_kifu_square.png",
       "sizes": "192x192 512x512",
-      "type": "image/svg+xml"
+      "type": "image/png"
     }
   ]
 }

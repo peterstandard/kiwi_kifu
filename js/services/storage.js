@@ -1,9 +1,11 @@
 /**
- * SimpleKifu - Local Storage & Game Archive Service
+ * Kiwi Kifu - Local Storage & Game Archive Service
  */
 
-const KEY_CURRENT = 'simplekifu_current';
-const KEY_LIBRARY = 'simplekifu_library';
+const KEY_CURRENT = 'kiwikifu_current';
+const KEY_LIBRARY = 'kiwikifu_library';
+const LEGACY_CURRENT = 'simplekifu_current';
+const LEGACY_LIBRARY = 'simplekifu_library';
 
 export class StorageService {
   static saveCurrentGame(sgf) {
@@ -16,7 +18,7 @@ export class StorageService {
 
   static loadCurrentGame() {
     try {
-      return localStorage.getItem(KEY_CURRENT);
+      return localStorage.getItem(KEY_CURRENT) || localStorage.getItem(LEGACY_CURRENT);
     } catch (err) {
       console.warn('LocalStorage error loading current game', err);
       return null;
@@ -50,7 +52,7 @@ export class StorageService {
 
   static getLibrary() {
     try {
-      const libraryStr = localStorage.getItem(KEY_LIBRARY) || '[]';
+      const libraryStr = localStorage.getItem(KEY_LIBRARY) || localStorage.getItem(LEGACY_LIBRARY) || '[]';
       return JSON.parse(libraryStr);
     } catch (err) {
       console.warn('Error reading library', err);
@@ -61,6 +63,7 @@ export class StorageService {
   static clearLibrary() {
     try {
       localStorage.removeItem(KEY_LIBRARY);
+      localStorage.removeItem(LEGACY_LIBRARY);
     } catch (err) {
       console.warn('Error clearing library', err);
     }

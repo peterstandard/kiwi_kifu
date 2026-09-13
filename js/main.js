@@ -1,5 +1,5 @@
 /**
- * SimpleKifu - Main Application Controller
+ * Kiwi Kifu - Main Application Controller
  */
 
 import { GoGame } from './engine/game.js';
@@ -10,7 +10,7 @@ import { StorageService } from './services/storage.js';
 import { WakeLockService } from './services/wakelock.js';
 import { ShareService } from './services/share.js';
 
-export class SimpleKifuUI {
+export class KiwiKifuUI {
   constructor() {
     this.game = new GoGame(19);
     this.numbersMode = 'last1'; // 'none' | 'last1' | 'last10' | 'all'
@@ -733,7 +733,7 @@ export class SimpleKifuUI {
 
   handleNativeShare() {
     const shareUrl = this.inputShareUrl?.value || '';
-    const title = `${this.game.info.blackName} vs ${this.game.info.whiteName} - SimpleKifu`;
+    const title = `${this.game.info.blackName} vs ${this.game.info.whiteName} - Kiwi Kifu`;
     ShareService.nativeShare({
       title,
       text: `Go Kifu (${this.game.history.length - 1} moves)`,
@@ -769,8 +769,10 @@ export class SimpleKifuUI {
 
 // Bootstrap
 export function initApp() {
-  if (!window.simpleKifuApp) {
-    window.simpleKifuApp = new SimpleKifuUI();
+  if (!window.kiwiKifuApp && !window.simpleKifuApp) {
+    const app = new KiwiKifuUI();
+    window.kiwiKifuApp = app;
+    window.simpleKifuApp = app;
   }
 }
 

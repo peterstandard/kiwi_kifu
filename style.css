@@ -1,18 +1,34 @@
 :root {
-  --bg-main: #18191c;
-  --bg-surface: #22242a;
-  --bg-surface-hover: #2c2f36;
-  --border-color: #343740;
-  --text-main: #f0f0f2;
-  --text-muted: #9ba1ad;
-  --accent: #d97706;
-  --accent-hover: #b45309;
-  --primary: #2563eb;
-  --primary-hover: #1d4ed8;
-  --danger: #dc2626;
+  /* Dark Espresso Foundation */
+  --bg-main: #141210;
+  --bg-surface: #201a16;
+  --bg-surface-hover: #2b231e;
+  --border-color: #3d3127;
+
+  /* Kiwi Brand Colors */
+  --kiwi-green: #88C13F;        /* Fresh Kiwi Green */
+  --kiwi-green-hover: #98d646;
+  --kiwi-brown: #8B5E3C;        /* Warm Kiwi Brown */
+  --kiwi-brown-hover: #9e6c46;
+  --espresso: #3D2A1F;          /* Dark Espresso */
+  --almond: #D6BA96;            /* Toasted Almond */
+  --beige: #FDF5E6;             /* Icon Beige */
+
+  /* Text Colors */
+  --text-main: #FDF5E6;
+  --text-muted: #D6BA96;
+
+  /* Semantics */
+  --primary: var(--kiwi-green);
+  --primary-hover: var(--kiwi-green-hover);
+  --accent: var(--kiwi-brown);
+  --accent-hover: var(--kiwi-brown-hover);
+  --danger: #ef4444;
+
+  /* Board Kaya Wood */
   --wood-bg: #dfa964;
-  --wood-border: #b87b2e;
-  --grid-line: #483015;
+  --wood-border: #8B5E3C;
+  --grid-line: #45311c;
 }
 
 * {
@@ -98,7 +114,7 @@ body {
 .game-meta-badge {
   font-size: 0.8rem;
   color: var(--text-muted);
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(61, 42, 31, 0.45);
   padding: 4px 10px;
   border-radius: 999px;
   cursor: pointer;
@@ -106,11 +122,12 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 160px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border-color);
 }
 
 .game-meta-badge:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(139, 94, 60, 0.35);
+  border-color: var(--kiwi-brown);
   color: var(--text-main);
 }
 
@@ -134,6 +151,7 @@ body {
 
 .icon-btn:hover {
   background-color: var(--bg-surface-hover);
+  border-color: var(--kiwi-brown);
 }
 
 .menu-btn {
@@ -150,8 +168,8 @@ body {
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background-color: #f59e0b;
-  box-shadow: 0 0 6px #f59e0b;
+  background-color: var(--kiwi-green);
+  box-shadow: 0 0 6px var(--kiwi-green);
 }
 
 .wake-dot-indicator.hidden {
@@ -163,8 +181,8 @@ body {
   position: absolute;
   top: 48px;
   right: 10px;
-  background: #1f2127;
-  border: 1px solid #3b3f4c;
+  background: #241d17;
+  border: 1px solid var(--border-color);
   border-radius: 10px;
   box-shadow: 0 12px 36px rgba(0, 0, 0, 0.75);
   width: 240px;
@@ -201,7 +219,7 @@ body {
 }
 
 .menu-item:hover, .menu-item:active {
-  background: #2a2d36;
+  background: rgba(136, 193, 63, 0.14);
 }
 
 .menu-icon {
@@ -228,9 +246,9 @@ body {
 }
 
 .menu-badge.active {
-  background: rgba(245, 158, 11, 0.25);
-  color: #fbbf24;
-  border: 1px solid rgba(245, 158, 11, 0.4);
+  background: rgba(136, 193, 63, 0.2);
+  color: var(--kiwi-green);
+  border: 1px solid rgba(136, 193, 63, 0.45);
 }
 
 .menu-divider {
@@ -335,11 +353,11 @@ body {
 }
 
 .zoom-mini-btn {
-  background: rgba(24, 25, 28, 0.78);
+  background: rgba(32, 26, 22, 0.85);
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  color: #f0f0f2;
+  border: 1px solid rgba(214, 186, 150, 0.28);
+  color: var(--text-main);
   width: 32px;
   height: 32px;
   border-radius: 6px;
@@ -356,8 +374,8 @@ body {
 }
 
 .zoom-mini-btn:hover {
-  background: rgba(44, 47, 54, 0.92);
-  border-color: rgba(255, 255, 255, 0.4);
+  background: rgba(48, 38, 31, 0.95);
+  border-color: var(--kiwi-brown);
 }
 
 .zoom-mini-btn:active {
@@ -369,12 +387,14 @@ body {
   padding: 0 6px;
   width: auto;
   min-width: 32px;
-  background: rgba(37, 99, 235, 0.85);
-  border-color: #3b82f6;
+  background: rgba(136, 193, 63, 0.92);
+  border-color: var(--kiwi-green);
+  color: #142007;
+  font-weight: 700;
 }
 
 .zoom-reset-btn:hover {
-  background: rgba(29, 78, 216, 0.95);
+  background: rgba(152, 214, 70, 0.98);
 }
 
 .zoom-mini-btn.hidden {
@@ -387,11 +407,11 @@ body {
   align-items: center;
   justify-content: space-between;
   padding: 8px 14px;
-  background: #2b271d;
-  border-top: 1px solid #785a28;
-  border-bottom: 1px solid #785a28;
+  background: #241d17;
+  border-top: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
   font-size: 0.9rem;
-  color: #fce788;
+  color: var(--almond);
 }
 
 .confirm-bar.hidden {
@@ -414,7 +434,7 @@ body {
 .comment-bar input {
   width: 100%;
   padding: 6px 10px;
-  background: rgba(0, 0, 0, 0.3);
+  background: rgba(0, 0, 0, 0.35);
   border: 1px solid var(--border-color);
   border-radius: 6px;
   color: var(--text-main);
@@ -423,8 +443,8 @@ body {
 }
 
 .comment-bar input:focus {
-  border-color: var(--primary);
-  background: rgba(0, 0, 0, 0.5);
+  border-color: var(--kiwi-green);
+  background: rgba(0, 0, 0, 0.55);
 }
 
 /* Bottom Controls */
@@ -446,7 +466,7 @@ body {
 }
 
 .ctrl-btn {
-  background: #2d313b;
+  background: #251e18;
   color: var(--text-main);
   border: 1px solid var(--border-color);
   border-radius: 8px;
@@ -459,28 +479,56 @@ body {
   gap: 6px;
   cursor: pointer;
   touch-action: manipulation;
-  transition: background 0.12s, transform 0.05s;
+  transition: background 0.12s, border-color 0.12s, transform 0.05s;
+}
+
+.ctrl-btn:hover {
+  background: #31261f;
+  border-color: var(--kiwi-brown);
 }
 
 .ctrl-btn:active {
   transform: scale(0.97);
-  background: #3a3f4c;
+  background: #3a2e25;
 }
 
 .ctrl-btn:disabled {
-  opacity: 0.4;
+  opacity: 0.35;
   pointer-events: none;
 }
 
+/* Undo & Redo: Warm Kiwi Brown (#8B5E3C) */
 .ctrl-btn-primary {
-  background: #2a3d60;
-  border-color: #3b5a91;
+  background: linear-gradient(145deg, #4f3622, #3c291a);
+  border: 1.5px solid #8B5E3C;
+  color: var(--beige);
 }
 
+.ctrl-btn-primary:hover {
+  background: linear-gradient(145deg, #5e4028, #47301e);
+  border-color: var(--kiwi-brown-hover);
+}
+
+.ctrl-btn-primary:active {
+  background: #332115;
+}
+
+/* Pass: Fresh Kiwi Green (#88C13F) */
 .ctrl-btn-accent {
-  background: #50371a;
-  border-color: #8c5b24;
-  color: #fed7aa;
+  background: linear-gradient(145deg, #2b3e15, #1f2d0f);
+  border: 1.5px solid #88C13F;
+  color: #dcf9a0;
+  font-weight: 700;
+}
+
+.ctrl-btn-accent:hover {
+  background: linear-gradient(145deg, #354d1a, #263813);
+  border-color: var(--kiwi-green-hover);
+  color: #f1ffcd;
+}
+
+.ctrl-btn-accent:active {
+  background: #19240c;
 }
 
 .quick-toggles {
@@ -490,10 +538,10 @@ body {
 }
 
 .toggle-btn {
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(255, 255, 255, 0.03);
   border: 1px solid var(--border-color);
   border-radius: 6px;
-  color: var(--text-muted);
+  color: var(--almond);
   font-size: 0.75rem;
   padding: 6px 4px;
   text-align: center;
@@ -501,14 +549,16 @@ body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  transition: all 0.12s ease;
 }
 
 .toggle-btn strong {
-  color: var(--text-main);
+  color: var(--kiwi-green);
 }
 
 .toggle-btn:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(139, 94, 60, 0.18);
+  border-color: var(--kiwi-brown);
 }
 
 .toggle-btn.danger {
@@ -616,7 +666,7 @@ body {
 .form-group input,
 .form-group select,
 .form-group textarea {
-  background: #18191c;
+  background: #191411;
   border: 1px solid var(--border-color);
   border-radius: 6px;
   padding: 8px 10px;
@@ -634,7 +684,7 @@ body {
 .form-group input:focus,
 .form-group select:focus,
 .form-group textarea:focus {
-  border-color: var(--primary);
+  border-color: var(--kiwi-green);
 }
 
 .btn {
@@ -648,7 +698,7 @@ body {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  transition: background 0.15s;
+  transition: background 0.15s, border-color 0.15s;
 }
 
 .btn-sm {
@@ -657,27 +707,30 @@ body {
 }
 
 .btn-primary {
-  background: var(--primary);
-  color: #fff;
+  background: var(--kiwi-green);
+  color: #142007;
+  font-weight: 700;
 }
 .btn-primary:hover {
-  background: var(--primary-hover);
+  background: var(--kiwi-green-hover);
 }
 
 .btn-secondary {
-  background: #343740;
+  background: #2a211a;
   color: var(--text-main);
+  border: 1px solid var(--kiwi-brown);
 }
 .btn-secondary:hover {
-  background: #424652;
+  background: #392c23;
+  border-color: var(--almond);
 }
 
 .btn-accent {
-  background: var(--accent);
-  color: #fff;
+  background: var(--kiwi-brown);
+  color: var(--beige);
 }
 .btn-accent:hover {
-  background: var(--accent-hover);
+  background: var(--kiwi-brown-hover);
 }
 
 .btn-danger-outline {

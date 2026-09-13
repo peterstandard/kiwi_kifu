@@ -7,6 +7,7 @@ import assert from 'node:assert';
 import { GoGame } from './js/engine/game.js';
 import { coordToSgf, sgfToCoord, coordToReadable } from './js/engine/sgf.js';
 import { StorageService } from './js/services/storage.js';
+import { ShareService } from './js/services/share.js';
 
 // Setup in-memory mock for localStorage in Node.js test environment
 if (!globalThis.localStorage) {
@@ -20,9 +21,9 @@ if (!globalThis.localStorage) {
 }
 
 let passed = 0;
-function test(name, fn) {
+async function test(name, fn) {
   try {
-    fn();
+    await fn();
     console.log(`  ✓ ${name}`);
     passed++;
   } catch (err) {
@@ -32,9 +33,9 @@ function test(name, fn) {
   }
 }
 
-console.log('\n--- Kiwi Kifu Engine & Storage Tests ---');
+console.log('\n--- Kiwi Kifu Engine, Storage & Share Tests ---');
 
-test('Coordinate & SGF translations', () => {
+await test('Coordinate & SGF translations', () => {
   assert.strictEqual(coordToSgf(0, 0), 'aa');
   assert.strictEqual(coordToSgf(3, 15), 'dp');
   assert.strictEqual(coordToSgf(null, null), '');
@@ -250,6 +251,55 @@ test('Storage individual game deletion', () => {
   const deleted = StorageService.deleteGame(r.id);
   assert.strictEqual(deleted, true);
   assert.strictEqual(StorageService.getLibraryRaw().length, 0, 'Game successfully removed');
+});
+
+await test('ShareService Deflate compression round-trip with UTF-8 & comments', async () => {
+  const game = new GoGame(19);
+  game.info.blackName = '本因坊秀策';
+  game.info.whiteName = 'Gennan Inseki';
+  game.playMove(3, 15);
+  game.setComment('The famous Ear-Reddening Move! 🎯 耳赤の一手');
+  game.playMove(15, 3);
+  const sgf = game.toSgf();
+
+  const compressed = await ShareService.compressText(sgf);
+  assert.ok(compressed);
+  assert.strictEqual(typeof compressed, 'string');
+
+  const decompressed = await ShareService.decompressText(compressed);
+  assert.strictEqual(decompressed, sgf, 'Decompressed text strictly matches original');
+
+  // Verify URL hash builder uses #z=
+  const shareUrl = await ShareService.buildShareUrl(sgf);
+  assert.ok(shareUrl.includes('#z='));
+
+  // Verify parseUrlHash parses #z=
+  const parsed = await ShareService.parseUrlHash('#z=' + compressed);
+  assert.strictEqual(parsed, sgf, 'Parsed #z= hash correctly');
+
+  // Verify backwards compatibility with legacy #sgf=
+  const legacyHash = '#sgf=' + encodeURIComponent(sgf);
+  const legacyParsed = await ShareService.parseUrlHash(legacyHash);
+  assert.strictEqual(legacyParsed, sgf, 'Parsed legacy #sgf= hash correctly');
+});
+
+await test('ShareService compression ratio for large game (150 moves)', async () => {
+  const game = new GoGame(19);
+  let moves = 0;
+  for (let x = 0; x < 19; x++) {
+    for (let y = 0; y < 19; y++) {
+      if (moves >= 150) break;
+      const res = game.playMove(x, y);
+      if (res.success) moves++;
+    }
+  }
+  const sgf = game.toSgf();
+  const rawEncoded = encodeURIComponent(sgf);
+  const compressed = await ShareService.compressText(sgf);
+
+  const reduction = 1 - (compressed.length / rawEncoded.length);
+  assert.ok(reduction > 0.65, `Expected >65% reduction, got ${Math.round(reduction * 100)}%`);
+  assert.ok(compressed.length < 700, `Expected <700 chars, got ${compressed.length}`);
 });
 
 console.log(`\nAll ${passed} invariant tests passed! 🎯\n`);

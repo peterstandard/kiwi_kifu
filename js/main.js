@@ -37,10 +37,8 @@ export class KiwiKifuUI {
 
     this.attachEventListeners();
 
-    const loadedFromHash = this.checkUrlHashGame();
-    if (!loadedFromHash) {
-      this.loadCurrentGame();
-    }
+    this.loadCurrentGame();
+    this.checkUrlHashGame();
 
     this.gestures.resetZoom();
     this.render();
@@ -777,9 +775,9 @@ export class KiwiKifuUI {
   }
 
   // Share Modal & Direct Link
-  openShareModal() {
+  async openShareModal() {
     const sgf = this.game.toSgf();
-    const shareUrl = ShareService.buildShareUrl(sgf);
+    const shareUrl = await ShareService.buildShareUrl(sgf);
 
     if (this.inputShareUrl) this.inputShareUrl.value = shareUrl;
     if (this.qrCodeContainer) {
@@ -816,8 +814,8 @@ export class KiwiKifuUI {
     }).catch(() => {});
   }
 
-  checkUrlHashGame() {
-    const decodedSgf = ShareService.parseUrlHash();
+  async checkUrlHashGame() {
+    const decodedSgf = await ShareService.parseUrlHash();
     if (decodedSgf) {
       if (this.game.history.length > 2) {
         this.archiveCurrentGame();
@@ -825,6 +823,7 @@ export class KiwiKifuUI {
       const loaded = this.game.loadSgf(decodedSgf);
       if (loaded) {
         this.saveCurrentGame();
+        this.render();
         this.showToast(`Loaded shared game (${this.game.history.length - 1} moves)! ♟️`);
         ShareService.clearUrlHash();
         return true;

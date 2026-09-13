@@ -63,18 +63,36 @@ body {
 .brand {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
 }
 
-.logo-icon {
-  font-size: 1.1rem;
+.logo-img {
+  height: 28px;
+  width: auto;
+  max-width: 48px;
+  object-fit: contain;
+  display: block;
 }
 
 .logo-title {
-  font-size: 1.05rem;
+  font-family: 'Fredoka', 'Quicksand', 'Comfortaa', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 1.22rem;
   font-weight: 700;
-  letter-spacing: -0.02em;
-  color: var(--text-main);
+  letter-spacing: 0.01em;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  line-height: 1;
+}
+
+.brand-kiwi {
+  color: #8ed322;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+}
+
+.brand-kifu {
+  color: #dfa964;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
 }
 
 .game-meta-badge {

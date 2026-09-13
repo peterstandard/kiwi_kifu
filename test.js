@@ -6,6 +6,18 @@
 import assert from 'node:assert';
 import { GoGame } from './js/engine/game.js';
 import { coordToSgf, sgfToCoord, coordToReadable } from './js/engine/sgf.js';
+import { StorageService } from './js/services/storage.js';
+
+// Setup in-memory mock for localStorage in Node.js test environment
+if (!globalThis.localStorage) {
+  const store = new Map();
+  globalThis.localStorage = {
+    getItem: (k) => store.get(k) ?? null,
+    setItem: (k, v) => store.set(k, String(v)),
+    removeItem: (k) => store.delete(k),
+    clear: () => store.clear()
+  };
+}
 
 let passed = 0;
 function test(name, fn) {
@@ -20,7 +32,7 @@ function test(name, fn) {
   }
 }
 
-console.log('\n--- Kiwi Kifu Engine Tests ---');
+console.log('\n--- Kiwi Kifu Engine & Storage Tests ---');
 
 test('Coordinate & SGF translations', () => {
   assert.strictEqual(coordToSgf(0, 0), 'aa');
@@ -161,6 +173,83 @@ test('SGF export & import round-trip', () => {
   assert.strictEqual(reloaded.info.whiteName, 'Bob');
   assert.strictEqual(reloaded.history.length, game.history.length);
   assert.strictEqual(reloaded.getBoardHash(), game.getBoardHash(), 'Board state identical');
+});
+
+test('Storage archive deduplication on identical games', () => {
+  StorageService.clearLibrary();
+  const game = new GoGame(19);
+  game.playMove(3, 15);
+  game.playMove(15, 3);
+
+  // First archive
+  const rec1 = StorageService.archiveGame(game);
+  assert.ok(rec1);
+  let lib = StorageService.getLibraryRaw();
+  assert.strictEqual(lib.length, 1);
+
+  // Second archive of unchanged game should deduplicate
+  const rec2 = StorageService.archiveGame(game);
+  assert.strictEqual(rec2.id, rec1.id, 'Returned existing record');
+  lib = StorageService.getLibraryRaw();
+  assert.strictEqual(lib.length, 1, 'Library did not add duplicate');
+
+  // Modified game (new move or comment) archives as new
+  game.playMove(3, 3);
+  const rec3 = StorageService.archiveGame(game);
+  assert.notStrictEqual(rec3.id, rec1.id);
+  lib = StorageService.getLibraryRaw();
+  assert.strictEqual(lib.length, 2, 'Modified game archives properly');
+});
+
+test('Storage Save Overwrite vs Save as Copy', () => {
+  StorageService.clearLibrary();
+  const game = new GoGame(19);
+  game.playMove(3, 15);
+  const copy1 = StorageService.saveGameCopy(game);
+  assert.ok(copy1);
+
+  // Play another move and overwrite
+  game.playMove(15, 3);
+  const overwriteRes = StorageService.saveGameOverwrite(game, copy1.id);
+  assert.strictEqual(overwriteRes.isNew, false);
+  assert.strictEqual(overwriteRes.record.moves, 2);
+
+  let lib = StorageService.getLibraryRaw();
+  assert.strictEqual(lib.length, 1, 'Overwrote in place');
+
+  // Save as copy creates an additional entry
+  const copy2 = StorageService.saveGameCopy(game);
+  lib = StorageService.getLibraryRaw();
+  assert.strictEqual(lib.length, 2, 'Save as copy added 2nd entry');
+  assert.notStrictEqual(copy2.id, copy1.id);
+});
+
+test('Storage favorite toggle and priority sorting', () => {
+  StorageService.clearLibrary();
+  const g1 = new GoGame(19); g1.playMove(3, 3);
+  const g2 = new GoGame(19); g2.playMove(15, 15);
+  const r1 = StorageService.saveGameCopy(g1);
+  const r2 = StorageService.saveGameCopy(g2);
+
+  // Toggle favorite on r1 (the older one)
+  const isFav = StorageService.toggleFavorite(r1.id);
+  assert.strictEqual(isFav, true);
+
+  // getLibrary() should put favorited game first
+  const sorted = StorageService.getLibrary();
+  assert.strictEqual(sorted[0].id, r1.id, 'Favorited game sorted to top');
+  assert.strictEqual(sorted[0].isFavorite, true);
+});
+
+test('Storage individual game deletion', () => {
+  StorageService.clearLibrary();
+  const g = new GoGame(19); g.playMove(9, 9);
+  const r = StorageService.saveGameCopy(g);
+  assert.strictEqual(StorageService.getLibraryRaw().length, 1);
+
+  const deleted = StorageService.deleteGame(r.id);
+  assert.strictEqual(deleted, true);
+  assert.strictEqual(StorageService.getLibraryRaw().length, 0, 'Game successfully removed');
 });
 
 console.log(`\nAll ${passed} invariant tests passed! 🎯\n`);

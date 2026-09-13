@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=12">
+  <link rel="stylesheet" href="style.css?v=13">
   <link rel="icon" href="kiwi_kifu_square.png">
   <link rel="apple-touch-icon" href="kiwi_kifu_square.png">
 </head>
@@ -20,7 +20,7 @@
     <header class="top-nav">
       <div class="brand">
         <img src="kiwi_kifu_stones.png" alt="Kiwi Kifu" class="logo-img">
-        <h1 class="logo-title"><span class="brand-kiwi">kiwi</span> <span class="brand-kifu">kifu</span></h1>
+        <h1 class="logo-title"><span class="brand-kiwi">kiwi</span> <span class="brand-kifu">kifu</span> <span class="brand-version">v1.2</span></h1>
       </div>
       <div class="game-meta-badge" id="game-meta-badge" title="Click to edit game info">
         <span id="badge-black-name">Black</span> vs <span id="badge-white-name">White</span>
@@ -54,13 +54,21 @@
         <span class="menu-icon">ℹ️</span>
         <span class="menu-text">Game Information</span>
       </div>
-      <div class="menu-item" id="menu-item-sgf">
-        <span class="menu-icon">📜</span>
-        <span class="menu-text">Export / Import SGF</span>
+      <div class="menu-item" id="menu-item-save-overwrite">
+        <span class="menu-icon">💾</span>
+        <span class="menu-text">Save Game (Overwrite)</span>
+      </div>
+      <div class="menu-item" id="menu-item-save-copy">
+        <span class="menu-icon">📑</span>
+        <span class="menu-text">Save as New Copy</span>
       </div>
       <div class="menu-item" id="menu-item-library">
         <span class="menu-icon">📁</span>
         <span class="menu-text">Saved Games</span>
+      </div>
+      <div class="menu-item" id="menu-item-sgf">
+        <span class="menu-icon">📜</span>
+        <span class="menu-text">Export / Import SGF</span>
       </div>
     </div>
 
@@ -85,6 +93,10 @@
     <!-- Board Area -->
     <main class="board-container" id="board-container">
       <div class="board-top-bar">
+        <div class="branch-mode-banner" title="Single branch mode: navigating back and playing will overwrite subsequent moves">
+          <span class="branch-mode-dot">●</span>
+          <span class="branch-mode-text">Single branch mode &mdash; overwrites moves</span>
+        </div>
         <div class="zoom-controls-group" id="zoom-controls">
           <button id="btn-zoom-in" class="zoom-mini-btn" title="Zoom in" aria-label="Zoom in">+</button>
           <button id="btn-zoom-out" class="zoom-mini-btn" title="Zoom out" aria-label="Zoom out">&minus;</button>
@@ -128,16 +140,16 @@
           </g>
         </svg>
       </div>
-    </main>
 
-    <!-- Tap Confirm Bar (appears only when Confirm Mode is enabled) -->
-    <div id="confirm-bar" class="confirm-bar hidden">
-      <span id="confirm-coord-text">Play at D4?</span>
-      <div class="confirm-actions">
-        <button id="btn-cancel-tap" class="btn btn-secondary btn-sm">Cancel</button>
-        <button id="btn-confirm-tap" class="btn btn-primary btn-sm">Confirm Stone</button>
+      <!-- Tap Confirm Bar Overlay (zero-height flex shift) -->
+      <div id="confirm-bar" class="confirm-bar hidden">
+        <span id="confirm-coord-text">Play at D4?</span>
+        <div class="confirm-actions">
+          <button id="btn-cancel-tap" class="btn btn-secondary btn-sm">Cancel</button>
+          <button id="btn-confirm-tap" class="btn btn-primary btn-sm">Confirm Stone</button>
+        </div>
       </div>
-    </div>
+    </main>
 
     <!-- Comment Bar -->
     <div class="comment-bar">
@@ -147,20 +159,33 @@
     <!-- Primary Controls -->
     <footer class="bottom-controls">
       <div class="nav-button-group">
-        <button id="btn-first" class="ctrl-btn" title="First Move (Home)">⏮</button>
-        <button id="btn-undo" class="ctrl-btn ctrl-btn-primary" title="Undo Move (Left Arrow)">
-          <span class="btn-icon">◀</span>
-          <span class="btn-label">Undo</span>
+        <button id="btn-first" class="ctrl-btn" title="First Move (Home)" aria-label="First Move">
+          <svg class="nav-icon" viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+            <rect x="4" y="5" width="2.5" height="14" rx="1" />
+            <polygon points="20,5 9,12 20,19" />
+          </svg>
         </button>
-        <button id="btn-pass" class="ctrl-btn ctrl-btn-accent" title="Pass Turn (Space)">
-          <span class="btn-icon">⏸</span>
+        <button id="btn-undo" class="ctrl-btn ctrl-btn-primary" title="Back (Left Arrow)" aria-label="Back">
+          <svg class="nav-icon" viewBox="0 0 24 24" width="15" height="15" fill="currentColor">
+            <polygon points="17,5 6,12 17,19" />
+          </svg>
+          <span class="btn-label">Back</span>
+        </button>
+        <button id="btn-pass" class="ctrl-btn ctrl-btn-accent" title="Pass Turn (Space)" aria-label="Pass Turn">
           <span class="btn-label">Pass</span>
         </button>
-        <button id="btn-redo" class="ctrl-btn ctrl-btn-primary" title="Redo Move (Right Arrow)">
-          <span class="btn-label">Redo</span>
-          <span class="btn-icon">▶</span>
+        <button id="btn-redo" class="ctrl-btn ctrl-btn-primary" title="Next (Right Arrow)" aria-label="Next">
+          <span class="btn-label">Next</span>
+          <svg class="nav-icon" viewBox="0 0 24 24" width="15" height="15" fill="currentColor">
+            <polygon points="7,5 18,12 7,19" />
+          </svg>
         </button>
-        <button id="btn-last" class="ctrl-btn" title="Last Move (End)">⏭</button>
+        <button id="btn-last" class="ctrl-btn" title="Last Move (End)" aria-label="Last Move">
+          <svg class="nav-icon" viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+            <polygon points="4,5 15,12 4,19" />
+            <rect x="17.5" y="5" width="2.5" height="14" rx="1" />
+          </svg>
+        </button>
       </div>
 
       <!-- Quick Toggles -->

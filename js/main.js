@@ -16,6 +16,7 @@ export class KiwiKifuUI {
     this.numbersMode = 'last1'; // 'none' | 'last1' | 'last10' | 'all'
     this.tapMode = 'instant'; // 'instant' | 'confirm'
     this.pendingMove = null; // { x, y }
+    this.activeGameId = null; // tracks current loaded/saved game id
 
     this.sound = new SoundFX();
     this.wakeLock = new WakeLockService((active, message) => {
@@ -116,6 +117,8 @@ export class KiwiKifuUI {
     this.menuItemWake = document.getElementById('menu-item-wake');
     this.menuItemSound = document.getElementById('menu-item-sound');
     this.menuItemInfo = document.getElementById('menu-item-info');
+    this.menuItemSaveOverwrite = document.getElementById('menu-item-save-overwrite');
+    this.menuItemSaveCopy = document.getElementById('menu-item-save-copy');
     this.menuItemSgf = document.getElementById('menu-item-sgf');
     this.menuItemLibrary = document.getElementById('menu-item-library');
 
@@ -213,6 +216,14 @@ export class KiwiKifuUI {
     this.menuItemInfo?.addEventListener('click', () => {
       this.dropdownMenu?.classList.add('hidden');
       this.openInfoModal();
+    });
+    this.menuItemSaveOverwrite?.addEventListener('click', () => {
+      this.dropdownMenu?.classList.add('hidden');
+      this.saveGameOverwriteAction();
+    });
+    this.menuItemSaveCopy?.addEventListener('click', () => {
+      this.dropdownMenu?.classList.add('hidden');
+      this.saveGameCopyAction();
     });
     this.menuItemSgf?.addEventListener('click', () => {
       this.dropdownMenu?.classList.add('hidden');
@@ -342,13 +353,6 @@ export class KiwiKifuUI {
   }
 
   attemptPlay(x, y) {
-    if (this.game.currentStep < this.game.history.length - 1) {
-      const futureCount = this.game.history.length - 1 - this.game.currentStep;
-      if (!confirm(`You are reviewing move ${this.game.currentStep}. Playing here will discard the ${futureCount} move(s) after this. Continue?`)) {
-        return;
-      }
-    }
-
     const res = this.game.playMove(x, y);
     if (!res.success) {
       this.showToast(res.error || 'Illegal move');
@@ -443,6 +447,7 @@ export class KiwiKifuUI {
       }
       this.archiveCurrentGame();
     }
+    this.activeGameId = null;
     this.game.reset();
     this.gestures.resetZoom();
     this.saveCurrentGame();
@@ -604,39 +609,109 @@ export class KiwiKifuUI {
     if (library.length === 0) {
       listEl.innerHTML = '<p class="section-note" style="padding:12px 0;">No archived games yet.</p>';
     } else {
-      library.forEach((item, index) => {
+      library.forEach((item) => {
         const itemEl = document.createElement('div');
-        itemEl.className = 'saved-game-item';
+        itemEl.className = `saved-game-item ${item.isFavorite ? 'favorite' : ''}`;
+        const favIcon = item.isFavorite ? '❤️' : '🤍';
+        const favTitle = item.isFavorite ? 'Unfavorite game' : 'Favorite game';
         itemEl.innerHTML = `
-          <div class="saved-game-info">
+          <button class="btn-fav-toggle" data-id="${item.id}" title="${favTitle}" aria-label="${favTitle}">
+            ${favIcon}
+          </button>
+          <div class="saved-game-info" data-id="${item.id}">
             <div class="saved-game-title">${this.escapeHtml(item.black)} vs ${this.escapeHtml(item.white)}</div>
-            <div class="saved-game-meta">${item.date} • ${item.moves} moves</div>
+            <div class="saved-game-meta">${item.date || 'Unknown date'} • ${item.moves || 0} moves</div>
           </div>
           <div class="saved-game-actions">
-            <button class="btn btn-secondary btn-sm load-game-btn" data-index="${index}">Open</button>
+            <button class="btn btn-secondary btn-sm load-game-btn" data-id="${item.id}">Open</button>
+            <button class="btn btn-danger-icon btn-sm delete-game-btn" data-id="${item.id}" title="Delete game" aria-label="Delete game">🗑️</button>
           </div>
         `;
         listEl.appendChild(itemEl);
       });
 
+      const handleOpen = (id) => {
+        const target = library.find(g => g.id === id);
+        if (target && target.sgf) {
+          if (this.game.history.length > 2) this.archiveCurrentGame();
+          this.game.loadSgf(target.sgf);
+          this.activeGameId = target.id;
+          this.gestures.resetZoom();
+          this.saveCurrentGame();
+          this.render();
+          this.modalLibrary?.classList.add('hidden');
+          this.showToast(`Opened: ${target.black} vs ${target.white}`);
+        }
+      };
+
       listEl.querySelectorAll('.load-game-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
-          const idx = parseInt(e.target.getAttribute('data-index'), 10);
-          const target = library[idx];
-          if (target && target.sgf) {
-            if (this.game.history.length > 2) this.archiveCurrentGame();
-            this.game.loadSgf(target.sgf);
-            this.gestures.resetZoom();
-            this.saveCurrentGame();
-            this.render();
-            this.modalLibrary?.classList.add('hidden');
-            this.showToast(`Opened: ${target.black} vs ${target.white}`);
+          const id = parseInt(e.currentTarget.getAttribute('data-id'), 10);
+          handleOpen(id);
+        });
+      });
+
+      listEl.querySelectorAll('.saved-game-info').forEach(el => {
+        el.addEventListener('click', (e) => {
+          const id = parseInt(e.currentTarget.getAttribute('data-id'), 10);
+          handleOpen(id);
+        });
+      });
+
+      listEl.querySelectorAll('.btn-fav-toggle').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const id = parseInt(e.currentTarget.getAttribute('data-id'), 10);
+          StorageService.toggleFavorite(id);
+          this.openLibraryModal();
+        });
+      });
+
+      listEl.querySelectorAll('.delete-game-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const id = parseInt(e.currentTarget.getAttribute('data-id'), 10);
+          const target = library.find(g => g.id === id);
+          const name = target ? `${target.black} vs ${target.white}` : 'this game';
+          if (confirm(`Delete ${name} from your saved games?`)) {
+            StorageService.deleteGame(id);
+            if (this.activeGameId === id) this.activeGameId = null;
+            this.openLibraryModal();
+            this.showToast('Game deleted');
           }
         });
       });
     }
 
     this.modalLibrary?.classList.remove('hidden');
+  }
+
+  saveGameOverwriteAction() {
+    if (this.game.history.length <= 1) {
+      this.showToast('No moves to save yet');
+      return;
+    }
+    const result = StorageService.saveGameOverwrite(this.game, this.activeGameId);
+    if (result) {
+      this.activeGameId = result.record.id;
+      this.showToast(result.isNew ? 'Saved to library' : 'Saved (overwrote existing game)');
+    } else {
+      this.showToast('Failed to save game');
+    }
+  }
+
+  saveGameCopyAction() {
+    if (this.game.history.length <= 1) {
+      this.showToast('No moves to save yet');
+      return;
+    }
+    const record = StorageService.saveGameCopy(this.game);
+    if (record) {
+      this.activeGameId = record.id;
+      this.showToast('Saved as new copy');
+    } else {
+      this.showToast('Failed to save game copy');
+    }
   }
 
   clearLibrary() {

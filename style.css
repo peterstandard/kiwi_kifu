@@ -312,11 +312,23 @@ body {
 .board-container {
   flex: 1;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 6px 8px;
+  padding: 4px 8px 8px 8px;
   overflow: hidden;
   background-color: #121315;
+  position: relative;
+}
+
+.board-top-bar {
+  width: 100%;
+  max-width: 540px;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  padding: 0 2px 6px 2px;
+  flex-shrink: 0;
 }
 
 .board-aspect-box {
@@ -341,50 +353,47 @@ body {
   -webkit-user-select: none;
 }
 
-/* Floating Zoom Controls */
-.zoom-floating-controls {
-  position: absolute;
-  top: 8px;
-  right: 8px;
+/* Zoom Controls */
+.zoom-controls-group {
   display: flex;
-  gap: 4px;
-  z-index: 20;
-  pointer-events: auto;
+  align-items: center;
+  gap: 5px;
 }
 
 .zoom-mini-btn {
-  background: rgba(32, 26, 22, 0.85);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
+  background: rgba(37, 30, 24, 0.9);
   border: 1px solid rgba(214, 186, 150, 0.28);
   color: var(--text-main);
   width: 32px;
-  height: 32px;
+  height: 30px;
   border-radius: 6px;
-  font-size: 1.1rem;
+  font-size: 1.15rem;
   font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.35);
   touch-action: manipulation;
   transition: all 0.15s ease;
   line-height: 1;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .zoom-mini-btn:hover {
-  background: rgba(48, 38, 31, 0.95);
+  background: rgba(54, 42, 33, 0.98);
   border-color: var(--kiwi-brown);
 }
 
 .zoom-mini-btn:active {
-  transform: scale(0.93);
+  transform: scale(0.92);
+  background: var(--kiwi-brown);
 }
 
 .zoom-reset-btn {
   font-size: 0.8rem;
-  padding: 0 6px;
+  padding: 0 8px;
   width: auto;
   min-width: 32px;
   background: rgba(136, 193, 63, 0.92);

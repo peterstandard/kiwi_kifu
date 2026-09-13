@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=11">
+  <link rel="stylesheet" href="style.css?v=12">
   <link rel="icon" href="kiwi_kifu_square.png">
   <link rel="apple-touch-icon" href="kiwi_kifu_square.png">
 </head>
@@ -84,6 +84,13 @@
 
     <!-- Board Area -->
     <main class="board-container" id="board-container">
+      <div class="board-top-bar">
+        <div class="zoom-controls-group" id="zoom-controls">
+          <button id="btn-zoom-in" class="zoom-mini-btn" title="Zoom in" aria-label="Zoom in">+</button>
+          <button id="btn-zoom-out" class="zoom-mini-btn" title="Zoom out" aria-label="Zoom out">&minus;</button>
+          <button id="btn-zoom-reset" class="zoom-mini-btn zoom-reset-btn hidden" title="Reset zoom" aria-label="Reset zoom">1&times;</button>
+        </div>
+      </div>
       <div class="board-aspect-box">
         <svg id="go-board" class="go-board-svg" viewBox="0 0 596 596" xmlns="http://www.w3.org/2000/svg">
           <defs>
@@ -120,11 +127,6 @@
             <g id="board-interactive"></g>
           </g>
         </svg>
-        <div class="zoom-floating-controls" id="zoom-controls">
-          <button id="btn-zoom-in" class="zoom-mini-btn" title="Zoom in" aria-label="Zoom in">+</button>
-          <button id="btn-zoom-out" class="zoom-mini-btn" title="Zoom out" aria-label="Zoom out">&minus;</button>
-          <button id="btn-zoom-reset" class="zoom-mini-btn zoom-reset-btn hidden" title="Reset zoom" aria-label="Reset zoom">1&times;</button>
-        </div>
       </div>
     </main>
 

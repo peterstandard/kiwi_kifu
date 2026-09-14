@@ -94,6 +94,7 @@ export class KiwiKifuUI {
     this.lastMoveCoord = document.getElementById('last-move-coord');
     this.capsBlack = document.getElementById('caps-black');
     this.capsWhite = document.getElementById('caps-white');
+    this.commentBar = document.getElementById('comment-bar');
     this.commentInput = document.getElementById('move-comment-input');
 
     // Bottom Navigation
@@ -115,6 +116,11 @@ export class KiwiKifuUI {
     this.confirmCoordText = document.getElementById('confirm-coord-text');
     this.btnConfirmTap = document.getElementById('btn-confirm-tap');
     this.btnCancelTap = document.getElementById('btn-cancel-tap');
+
+    // Move Scrubber Slider UI
+    this.moveSliderContainer = document.getElementById('move-slider-container');
+    this.moveSlider = document.getElementById('move-slider');
+    this.sliderMaxLabel = document.getElementById('slider-max-label');
 
     // Single Move Edit UI
     this.branchModeBanner = document.getElementById('branch-mode-banner');
@@ -230,6 +236,33 @@ export class KiwiKifuUI {
     });
     this.btnConfirmEditMove?.addEventListener('click', () => {
       this.confirmEditMove();
+    });
+
+    // Move Scrubber Slider
+    this.moveSlider?.addEventListener('input', (e) => {
+      if (this.scoringMode || this.editingMove) return;
+      if (this.pendingMove) {
+        this.pendingMove = null;
+        this.hideConfirmBar();
+      }
+      const targetStep = parseInt(e.target.value, 10);
+      if (!isNaN(targetStep) && targetStep >= 0 && targetStep < this.game.history.length) {
+        this.game.jumpToStep(targetStep);
+        this.render();
+      }
+    });
+
+    this.moveSlider?.addEventListener('change', (e) => {
+      if (this.scoringMode || this.editingMove) return;
+      if (this.pendingMove) {
+        this.pendingMove = null;
+        this.hideConfirmBar();
+      }
+      const targetStep = parseInt(e.target.value, 10);
+      if (!isNaN(targetStep) && targetStep >= 0 && targetStep < this.game.history.length) {
+        this.game.jumpToStep(targetStep);
+        this.render();
+      }
     });
 
     // Comments
@@ -370,6 +403,7 @@ export class KiwiKifuUI {
     // New Game modal actions
     document.getElementById('btn-new-game-save')?.addEventListener('click', () => {
       this.modalNewGame?.classList.add('hidden');
+      if (this.editingMove) this.cancelEditMove();
       if (this.scoringMode) this.exitScoringMode();
       this.archiveCurrentGame();
       this.activeGameId = null;
@@ -382,6 +416,7 @@ export class KiwiKifuUI {
 
     document.getElementById('btn-new-game-discard')?.addEventListener('click', () => {
       this.modalNewGame?.classList.add('hidden');
+      if (this.editingMove) this.cancelEditMove();
       if (this.scoringMode) this.exitScoringMode();
       this.activeGameId = null;
       this.game.reset();
@@ -401,6 +436,13 @@ export class KiwiKifuUI {
         if (openModal) {
           e.preventDefault();
           openModal.classList.add('hidden');
+          return;
+        }
+      }
+      if (this.editingMove) {
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          this.cancelEditMove();
           return;
         }
       }
@@ -469,6 +511,13 @@ export class KiwiKifuUI {
       if (this.btnUndo) this.btnUndo.disabled = true;
       if (this.btnRedo) this.btnRedo.disabled = true;
       if (this.btnLast) this.btnLast.disabled = true;
+      if (this.moveSlider) {
+        this.moveSlider.max = total;
+        this.moveSlider.value = this.game.currentStep;
+        this.moveSlider.disabled = true;
+      }
+      if (this.sliderMaxLabel) this.sliderMaxLabel.textContent = total;
+      this.moveSliderContainer?.classList.add('edit-disabled');
       return;
     }
 
@@ -501,6 +550,23 @@ export class KiwiKifuUI {
     if (this.btnUndo) this.btnUndo.disabled = step === 0;
     if (this.btnRedo) this.btnRedo.disabled = step >= total;
     if (this.btnLast) this.btnLast.disabled = step >= total;
+
+    // Move Scrubber Slider sync
+    if (this.moveSlider) {
+      this.moveSlider.max = total;
+      this.moveSlider.value = step;
+      this.moveSlider.disabled = total === 0 || !!this.editingMove;
+    }
+    if (this.sliderMaxLabel) {
+      this.sliderMaxLabel.textContent = total;
+    }
+    if (this.moveSliderContainer) {
+      if (this.editingMove) {
+        this.moveSliderContainer.classList.add('edit-disabled');
+      } else {
+        this.moveSliderContainer.classList.remove('edit-disabled');
+      }
+    }
 
     // Badges
     if (this.badgeBlackName) this.badgeBlackName.textContent = this.game.info.blackName || 'Black';
@@ -606,6 +672,8 @@ export class KiwiKifuUI {
     }
     this.btnConfirmEditMove?.classList.add('hidden');
     this.editMoveBar?.classList.remove('hidden');
+    if (this.moveSlider) this.moveSlider.disabled = true;
+    this.moveSliderContainer?.classList.add('edit-disabled');
 
     this.render();
     this.showToast(`Editing Move #${moveStep} — tap new intersection`);
@@ -657,6 +725,7 @@ export class KiwiKifuUI {
       this.pendingEditCoord = null;
       this.editMoveBar?.classList.add('hidden');
       this.btnConfirmEditMove?.classList.add('hidden');
+      this.moveSliderContainer?.classList.remove('edit-disabled');
       this.branchModeBanner?.classList.remove('edit-mode-active');
       if (this.branchModeDot) this.branchModeDot.textContent = '●';
       if (this.branchModeText) this.branchModeText.textContent = 'Single branch mode — overwrites moves';
@@ -701,6 +770,7 @@ export class KiwiKifuUI {
 
     this.editMoveBar?.classList.add('hidden');
     this.btnConfirmEditMove?.classList.add('hidden');
+    this.moveSliderContainer?.classList.remove('edit-disabled');
     this.branchModeBanner?.classList.remove('edit-mode-active');
     if (this.branchModeDot) this.branchModeDot.textContent = '●';
     if (this.branchModeText) this.branchModeText.textContent = 'Single branch mode — overwrites moves';
@@ -813,6 +883,7 @@ export class KiwiKifuUI {
   }
 
   confirmNewGame() {
+    if (this.editingMove) this.cancelEditMove();
     if (this.game.history.length <= 1) {
       if (this.scoringMode) this.exitScoringMode();
       this.activeGameId = null;
@@ -1156,6 +1227,7 @@ export class KiwiKifuUI {
       return;
     }
 
+    if (this.editingMove) this.cancelEditMove();
     if (this.scoringMode) this.exitScoringMode();
     if (this.game.history.length > 2) {
       this.archiveCurrentGame();
@@ -1242,6 +1314,7 @@ export class KiwiKifuUI {
       const handleOpen = (id) => {
         const target = library.find(g => g.id === id);
         if (target && target.sgf) {
+          if (this.editingMove) this.cancelEditMove();
           if (this.scoringMode) this.exitScoringMode();
           if (this.game.history.length > 2) this.archiveCurrentGame();
           this.game.loadSgf(target.sgf);

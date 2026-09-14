@@ -648,13 +648,130 @@ body {
 
 /* Bottom Controls */
 .bottom-controls {
-  padding: 8px 12px 14px 12px;
+  padding: 6px 12px 12px 12px;
   background: var(--bg-surface);
   border-top: 1px solid var(--border-color);
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
+  gap: 6px;
+}
+
+/* Move Scrubber Slider */
+.move-slider-container {
+  display: flex;
+  align-items: center;
   gap: 8px;
+  padding: 0 4px;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+  transition: opacity 0.15s ease;
+}
+
+.move-slider-container.edit-disabled {
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+.slider-step-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  min-width: 22px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.slider-track-wrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  position: relative;
+}
+
+.move-slider {
+  width: 100%;
+  height: 20px;
+  background: transparent;
+  -webkit-appearance: none;
+  appearance: none;
+  cursor: pointer;
+  margin: 0;
+  padding: 0;
+}
+
+.move-slider:focus {
+  outline: none;
+}
+
+/* WebKit Track */
+.move-slider::-webkit-slider-runnable-track {
+  width: 100%;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  border: none;
+  transition: background 0.15s;
+}
+
+.move-slider:hover:not(:disabled)::-webkit-slider-runnable-track {
+  background: rgba(255, 255, 255, 0.26);
+}
+
+/* WebKit Thumb */
+.move-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--kiwi-green);
+  border: 2px solid #142007;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
+  margin-top: -6px;
+  cursor: grab;
+  transition: transform 0.1s ease, background 0.15s;
+}
+
+.move-slider::-webkit-slider-thumb:active {
+  cursor: grabbing;
+  transform: scale(1.25);
+  background: var(--kiwi-green-hover);
+}
+
+/* Firefox Track */
+.move-slider::-moz-range-track {
+  width: 100%;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  border: none;
+}
+
+/* Firefox Thumb */
+.move-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--kiwi-green);
+  border: 2px solid #142007;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
+  cursor: grab;
+  transition: transform 0.1s ease, background 0.15s;
+}
+
+.move-slider::-moz-range-thumb:active {
+  cursor: grabbing;
+  transform: scale(1.25);
+  background: var(--kiwi-green-hover);
+}
+
+.move-slider:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  pointer-events: none;
 }
 
 .nav-button-group {

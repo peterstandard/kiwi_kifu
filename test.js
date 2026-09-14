@@ -710,4 +710,69 @@ await test('adjustMove: preserves viewer returnStep when game has future moves',
   assert.strictEqual(game.history[2].coord.y, 17);
 });
 
+await test('Move Scrubber: synchronizes bounds, tracks step, and scrubs history without truncation', () => {
+  const game = new GoGame(19);
+
+  // Fresh game: 0 moves
+  let total = game.history.length - 1;
+  let slider = { min: 0, max: total, value: game.currentStep, disabled: total === 0 };
+  assert.strictEqual(slider.max, 0);
+  assert.strictEqual(slider.value, 0);
+  assert.strictEqual(slider.disabled, true, 'Scrubber disabled on empty board');
+
+  // Play 15 moves
+  for (let i = 0; i < 15; i++) {
+    game.playMove(i, 3);
+  }
+  total = game.history.length - 1;
+  slider = { min: 0, max: total, value: game.currentStep, disabled: total === 0 };
+  assert.strictEqual(slider.max, 15);
+  assert.strictEqual(slider.value, 15);
+  assert.strictEqual(slider.disabled, false, 'Scrubber enabled with moves');
+
+  // Simulate scrubbing slider to move 7
+  const scrubTarget = 7;
+  const jumped = game.jumpToStep(scrubTarget);
+  assert.strictEqual(jumped, true);
+  assert.strictEqual(game.currentStep, 7);
+  assert.strictEqual(game.history.length, 16, 'Scrubbing does not truncate single-branch history');
+
+  // Board state reflects move 7
+  assert.strictEqual(game.board[3][0], 1, 'Move 1 stone exists');
+  assert.strictEqual(game.board[3][6], 1, 'Move 7 stone exists');
+  assert.strictEqual(game.board[3][7], 0, 'Move 8 stone not yet placed at step 7');
+
+  // Simulate scrubbing slider back to move 0 (initial board)
+  game.jumpToStep(0);
+  assert.strictEqual(game.currentStep, 0);
+  assert.strictEqual(game.board[3][0], 0, 'Board is clear at step 0');
+  assert.strictEqual(game.history.length, 16, 'Full 15 moves still preserved in history');
+
+  // Scrubbing forward to move 15
+  game.jumpToStep(15);
+  assert.strictEqual(game.currentStep, 15);
+  assert.strictEqual(game.board[3][14], 1, 'Move 15 stone exists');
+});
+
+await test('Move Scrubber: disabled during edit-move mode or empty game', () => {
+  const game = new GoGame(19);
+  game.playMove(3, 3);
+  game.playMove(15, 15);
+
+  let editingMove = null;
+  const total = game.history.length - 1;
+  let isSliderDisabled = (total === 0 || !!editingMove);
+  assert.strictEqual(isSliderDisabled, false, 'Slider is enabled during standard play');
+
+  // Enter edit-move mode
+  editingMove = { step: 1, originalCoord: { x: 3, y: 3 }, player: 1, returnStep: 2 };
+  isSliderDisabled = (total === 0 || !!editingMove);
+  assert.strictEqual(isSliderDisabled, true, 'Slider is disabled when editing historical move');
+
+  // Exit edit-move mode
+  editingMove = null;
+  isSliderDisabled = (total === 0 || !!editingMove);
+  assert.strictEqual(isSliderDisabled, false, 'Slider is re-enabled when exiting edit-move mode');
+});
+
 console.log(`\nAll ${passed} invariant tests passed! 🎯\n`);

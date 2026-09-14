@@ -937,13 +937,16 @@ export class KiwiKifuUI {
         itemEl.className = `saved-game-item ${item.isFavorite ? 'favorite' : ''}`;
         const favIcon = item.isFavorite ? '❤️' : '🤍';
         const favTitle = item.isFavorite ? 'Unfavorite game' : 'Favorite game';
+        const result = item.result || (item.sgf ? (item.sgf.match(/RE\[([^\]]+)\]/)?.[1] || '') : '');
+        const resultHtml = result ? ` • <span class="saved-game-result">${this.escapeHtml(result)}</span>` : '';
+
         itemEl.innerHTML = `
           <button class="btn-fav-toggle" data-id="${item.id}" title="${favTitle}" aria-label="${favTitle}">
             ${favIcon}
           </button>
           <div class="saved-game-info" data-id="${item.id}">
-            <div class="saved-game-title">${this.escapeHtml(item.black)} vs ${this.escapeHtml(item.white)}</div>
-            <div class="saved-game-meta">${item.date || 'Unknown date'} • ${item.moves || 0} moves</div>
+            <div class="saved-game-title">${this.escapeHtml(item.black)} <span class="saved-game-color">(B)</span> vs ${this.escapeHtml(item.white)} <span class="saved-game-color">(W)</span></div>
+            <div class="saved-game-meta">${item.date || 'Unknown date'} • ${item.moves || 0} moves${resultHtml}</div>
           </div>
           <div class="saved-game-actions">
             <button class="btn btn-secondary btn-sm load-game-btn" data-id="${item.id}">Open</button>

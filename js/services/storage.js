@@ -75,6 +75,7 @@ export class StorageService {
         date: game.info.date || new Date().toISOString().slice(0, 10),
         black: game.info.blackName || 'Black',
         white: game.info.whiteName || 'White',
+        result: game.info.result || '',
         moves: game.history.length - 1,
         sgf,
         isFavorite: false
@@ -98,6 +99,7 @@ export class StorageService {
       const date = game.info.date || new Date().toISOString().slice(0, 10);
       const black = game.info.blackName || 'Black';
       const white = game.info.whiteName || 'White';
+      const result = game.info.result || '';
 
       let targetIdx = -1;
       if (existingId) {
@@ -110,6 +112,7 @@ export class StorageService {
         library[targetIdx].date = date;
         library[targetIdx].black = black;
         library[targetIdx].white = white;
+        library[targetIdx].result = result;
         this.saveLibraryRaw(library);
         return { record: library[targetIdx], isNew: false };
       } else {
@@ -123,6 +126,7 @@ export class StorageService {
           date,
           black,
           white,
+          result,
           moves,
           sgf,
           isFavorite: false
@@ -148,6 +152,7 @@ export class StorageService {
         date: game.info.date || new Date().toISOString().slice(0, 10),
         black: game.info.blackName || 'Black',
         white: game.info.whiteName || 'White',
+        result: game.info.result || '',
         moves: game.history.length - 1,
         sgf,
         isFavorite: false

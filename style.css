@@ -972,9 +972,21 @@ body {
   text-overflow: ellipsis;
 }
 
+.saved-game-color {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
 .saved-game-meta {
   font-size: 0.75rem;
   color: var(--text-muted);
+  margin-top: 1px;
+}
+
+.saved-game-result {
+  color: var(--kiwi-green-light);
+  font-weight: 600;
 }
 
 .saved-game-actions {

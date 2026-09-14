@@ -212,19 +212,23 @@ test('Storage Save Overwrite vs Save as Copy', () => {
   const copy1 = StorageService.saveGameCopy(game);
   assert.ok(copy1);
 
-  // Play another move and overwrite
+  // Play another move, set result, and overwrite
   game.playMove(15, 3);
+  game.info.result = 'W+Res';
   const overwriteRes = StorageService.saveGameOverwrite(game, copy1.id);
   assert.strictEqual(overwriteRes.isNew, false);
   assert.strictEqual(overwriteRes.record.moves, 2);
+  assert.strictEqual(overwriteRes.record.result, 'W+Res');
 
   let lib = StorageService.getLibraryRaw();
   assert.strictEqual(lib.length, 1, 'Overwrote in place');
+  assert.strictEqual(lib[0].result, 'W+Res');
 
-  // Save as copy creates an additional entry
+  // Save as copy creates an additional entry with result preserved
   const copy2 = StorageService.saveGameCopy(game);
   lib = StorageService.getLibraryRaw();
   assert.strictEqual(lib.length, 2, 'Save as copy added 2nd entry');
+  assert.strictEqual(copy2.result, 'W+Res');
   assert.notStrictEqual(copy2.id, copy1.id);
 });
 

@@ -23,3 +23,8 @@ yarn-error.log*
 # Logs & Temp files
 *.log
 *.tmp
+
+# AI Agent Context Primers (local only)
+AGENTS.md
+CLAUDE.md
+GEMINI.md

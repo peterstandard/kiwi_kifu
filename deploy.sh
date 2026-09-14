@@ -103,7 +103,7 @@ rsync -av --delete \
   --exclude='test.js' \
   --exclude='deploy.sh' \
   --exclude='scripts*' \
-  --exclude='README.md' \
+  --exclude='*.md' \
   --exclude='package.json' \
   ./ "$TARGET_DIR/"
 

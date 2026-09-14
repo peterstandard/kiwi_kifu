@@ -1176,6 +1176,40 @@ body {
   color: var(--text-main);
 }
 
+.share-modal-divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin: 10px 0 6px 0;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.share-modal-divider::before,
+.share-modal-divider::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.share-modal-divider span {
+  padding: 0 8px;
+}
+
+.share-png-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+.share-png-actions .btn {
+  flex: 1;
+  font-size: 0.8rem;
+  padding: 7px 10px;
+}
+
 /* ==========================================================================
    Territory Scoring Panel
    ========================================================================== */

@@ -216,4 +216,129 @@ export class BoardRenderer {
       }
     }
   }
+
+  /**
+   * Generates standalone, self-contained SVG markup for board image export.
+   * Includes all gradients, drop shadows, and fonts inline so it can be cleanly
+   * rendered to Canvas / PNG without external CSS dependencies.
+   */
+  generateExportSvg(game, numbersMode = 'all') {
+    const metrics = this.getMetrics(game.size);
+    const { size, margin, cellSize, width, height, stoneRadius } = metrics;
+    const moveNumbers = this.calculateMoveNumbers(game, numbersMode);
+    const sansFont = 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+
+    // 1. Grid Lines
+    let gridSvg = '';
+    const startCoord = margin;
+    const endCoord = margin + (size - 1) * cellSize;
+
+    for (let i = 0; i < size; i++) {
+      const pos = margin + i * cellSize;
+      const strokeWidth = (i === 0 || i === size - 1) ? 2 : 1;
+      gridSvg += `<line x1="${pos}" y1="${startCoord}" x2="${pos}" y2="${endCoord}" stroke="#45311c" stroke-width="${strokeWidth}" />`;
+      gridSvg += `<line x1="${startCoord}" y1="${pos}" x2="${endCoord}" y2="${pos}" stroke="#45311c" stroke-width="${strokeWidth}" />`;
+    }
+
+    // 2. Star Points (Hoshi)
+    let starSvg = '';
+    let starIndices = [];
+    if (size === 19) starIndices = [3, 9, 15];
+    else if (size === 13) starIndices = [3, 6, 9];
+    else if (size === 9) starIndices = [2, 4, 6];
+
+    for (const row of starIndices) {
+      for (const col of starIndices) {
+        const cx = margin + col * cellSize;
+        const cy = margin + row * cellSize;
+        starSvg += `<circle cx="${cx}" cy="${cy}" r="3.2" fill="#382512" />`;
+      }
+    }
+
+    // 3. Coordinate Labels
+    let coordSvg = '';
+    const labelColor = '#6d5032';
+    const fontSize = 11;
+
+    for (let i = 0; i < size; i++) {
+      const pos = margin + i * cellSize;
+      const letter = COORD_LETTERS[i];
+      const number = size - i;
+
+      coordSvg += `<text x="${pos}" y="${margin * 0.55}" text-anchor="middle" dominant-baseline="central" font-size="${fontSize}" font-weight="600" fill="${labelColor}" font-family="${sansFont}">${letter}</text>`;
+      coordSvg += `<text x="${pos}" y="${height - margin * 0.45}" text-anchor="middle" dominant-baseline="central" font-size="${fontSize}" font-weight="600" fill="${labelColor}" font-family="${sansFont}">${letter}</text>`;
+
+      coordSvg += `<text x="${margin * 0.45}" y="${pos}" text-anchor="middle" dominant-baseline="central" font-size="${fontSize}" font-weight="600" fill="${labelColor}" font-family="${sansFont}">${number}</text>`;
+      coordSvg += `<text x="${width - margin * 0.45}" y="${pos}" text-anchor="middle" dominant-baseline="central" font-size="${fontSize}" font-weight="600" fill="${labelColor}" font-family="${sansFont}">${number}</text>`;
+    }
+
+    // 4. Stones & Markers
+    let stonesSvg = '';
+    let markersSvg = '';
+
+    for (let y = 0; y < size; y++) {
+      for (let x = 0; x < size; x++) {
+        const color = game.board[y][x];
+        if (color === 0) continue;
+
+        const cx = margin + x * cellSize;
+        const cy = margin + y * cellSize;
+        const grad = color === 1 ? 'url(#exp-black-grad)' : 'url(#exp-white-grad)';
+        const stroke = color === 1 ? '#111' : '#bbb';
+
+        stonesSvg += `<circle cx="${cx}" cy="${cy}" r="${stoneRadius}" fill="${grad}" stroke="${stroke}" stroke-width="0.8" filter="url(#exp-stone-shadow)" />`;
+
+        const moveNum = moveNumbers[`${x},${y}`];
+        if (moveNum !== undefined) {
+          const numColor = color === 1 ? '#ffffff' : '#000000';
+          const numSize = moveNum > 99 ? 10 : 12;
+          markersSvg += `<text x="${cx}" y="${cy}" text-anchor="middle" dominant-baseline="central" font-size="${numSize}" font-weight="bold" fill="${numColor}" font-family="${sansFont}">${moveNum}</text>`;
+        }
+      }
+    }
+
+    // Last move marker (ring marker) if unnumbered or if last move has no number
+    const currentNode = game.history[game.currentStep];
+    if (currentNode && currentNode.coord && currentNode.coord.x !== null) {
+      const { x, y } = currentNode.coord;
+      const moveNum = moveNumbers[`${x},${y}`];
+      if (moveNum === undefined) {
+        const cx = margin + x * cellSize;
+        const cy = margin + y * cellSize;
+        const markerColor = currentNode.player === 1 ? '#ffffff' : '#dc2626';
+        markersSvg += `<circle cx="${cx}" cy="${cy}" r="${stoneRadius * 0.38}" fill="none" stroke="${markerColor}" stroke-width="2.2" />`;
+      }
+    }
+
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}">
+      <defs>
+        <linearGradient id="exp-wood-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#e8be78" />
+          <stop offset="50%" stop-color="#dfa964" />
+          <stop offset="100%" stop-color="#d39b4f" />
+        </linearGradient>
+        <radialGradient id="exp-black-grad" cx="35%" cy="30%" r="65%">
+          <stop offset="0%" stop-color="#5a5a5a" />
+          <stop offset="45%" stop-color="#222222" />
+          <stop offset="100%" stop-color="#050505" />
+        </radialGradient>
+        <radialGradient id="exp-white-grad" cx="30%" cy="25%" r="70%">
+          <stop offset="0%" stop-color="#ffffff" />
+          <stop offset="60%" stop-color="#eeeeee" />
+          <stop offset="90%" stop-color="#d4d4d4" />
+          <stop offset="100%" stop-color="#b0b0b0" />
+        </radialGradient>
+        <filter id="exp-stone-shadow" x="-20%" y="-20%" width="145%" height="145%">
+          <feDropShadow dx="1" dy="2.5" stdDeviation="1.8" flood-opacity="0.38" />
+        </filter>
+      </defs>
+      <rect width="${width}" height="${height}" fill="url(#exp-wood-grad)" />
+      <g id="exp-grid">${gridSvg}</g>
+      <g id="exp-stars">${starSvg}</g>
+      <g id="exp-coords">${coordSvg}</g>
+      <g id="exp-stones">${stonesSvg}</g>
+      <g id="exp-markers">${markersSvg}</g>
+    </svg>`;
+  }
 }
+

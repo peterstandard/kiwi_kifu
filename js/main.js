@@ -176,6 +176,8 @@ export class KiwiKifuUI {
     this.inputShareUrl = document.getElementById('input-share-url');
     this.btnCopyShareLink = document.getElementById('btn-copy-share-link');
     this.btnNativeShare = document.getElementById('btn-native-share');
+    this.btnSharePngNumbered = document.getElementById('btn-share-png-numbered');
+    this.btnSharePngClean = document.getElementById('btn-share-png-clean');
     this.toastEl = document.getElementById('toast');
   }
 
@@ -312,6 +314,8 @@ export class KiwiKifuUI {
 
     this.btnCopyShareLink?.addEventListener('click', () => { this.copyShareLink(); });
     this.btnNativeShare?.addEventListener('click', () => { this.handleNativeShare(); });
+    this.btnSharePngNumbered?.addEventListener('click', () => { this.exportBoardPng(true); });
+    this.btnSharePngClean?.addEventListener('click', () => { this.exportBoardPng(false); });
 
     // Modals
     this.metaBadge?.addEventListener('click', () => { this.openInfoModal(); });
@@ -1227,6 +1231,33 @@ export class KiwiKifuUI {
       text: `Go Kifu (${this.game.history.length - 1} moves)`,
       url: shareUrl
     }).catch(() => {});
+  }
+
+  async exportBoardPng(isNumbered) {
+    try {
+      this.showToast('Rendering board image... ⏳');
+      const numbersMode = isNumbered ? 'all' : 'none';
+      const svgStr = this.boardRenderer.generateExportSvg(this.game, numbersMode);
+      const blob = await ShareService.exportSvgToPngBlob(svgStr, 1200, 1200);
+      if (!blob) throw new Error('Could not create image blob');
+
+      const black = (this.game.info.blackName || 'Black').replace(/\s+/g, '_');
+      const white = (this.game.info.whiteName || 'White').replace(/\s+/g, '_');
+      const step = this.game.currentStep;
+      const modeStr = isNumbered ? 'numbered' : 'clean';
+      const filename = `kiwikifu_${black}_vs_${white}_m${step}_${modeStr}.png`;
+      const title = `${this.game.info.blackName} vs ${this.game.info.whiteName} - Move ${step} (${isNumbered ? 'Numbered' : 'Clean'})`;
+
+      const result = await ShareService.shareOrDownloadPng(blob, filename, title);
+      if (result.downloaded) {
+        this.showToast(`Saved board image (${isNumbered ? 'Numbered' : 'Clean'})! 🖼️`);
+      } else if (result.shared) {
+        this.showToast('Board image shared! 🖼️');
+      }
+    } catch (err) {
+      console.error('Board PNG export failed', err);
+      this.showToast('Failed to export board image');
+    }
   }
 
   async checkUrlHashGame() {

@@ -370,4 +370,111 @@ export class GoGame {
 
     return true;
   }
+
+  /**
+   * Finds which move step in history (1..atStep) placed the stone currently residing at (x, y).
+   * Returns:
+   *   - step number (1..N) if placed by a move
+   *   - 0 if it is a handicap stone
+   *   - null if no stone or not found
+   */
+  findMoveAtCoord(x, y, atStep = this.currentStep) {
+    if (atStep < 0 || atStep >= this.history.length) return null;
+    const color = this.board[y] ? this.board[y][x] : 0;
+    if (!color) return null;
+
+    for (let i = atStep; i >= 1; i--) {
+      const node = this.history[i];
+      if (node && node.coord && node.coord.x === x && node.coord.y === y && node.player === color) {
+        return i;
+      }
+    }
+
+    if (this.handicapStones && this.handicapStones.some(pt => pt.x === x && pt.y === y)) {
+      return 0;
+    }
+
+    return null;
+  }
+
+  /**
+   * Retroactively adjusts the coordinate of a historical move without truncating
+   * subsequent moves, validating all moves forward to ensure rules integrity.
+   * If any subsequent move becomes illegal or conflicts, the adjustment is rejected
+   * and the original game remains completely untouched.
+   */
+  adjustMove(stepIndex, newX, newY) {
+    if (stepIndex <= 0 || stepIndex >= this.history.length) {
+      return { success: false, error: 'Invalid move step' };
+    }
+    const targetNode = this.history[stepIndex];
+    if (!targetNode || !targetNode.coord) {
+      return { success: false, error: 'Cannot adjust a pass move' };
+    }
+    if (targetNode.coord.x === newX && targetNode.coord.y === newY) {
+      return { success: false, error: 'New location is the same as current' };
+    }
+    if (newX < 0 || newX >= this.size || newY < 0 || newY >= this.size) {
+      return { success: false, error: 'Out of bounds' };
+    }
+
+    // Sandbox validation using an isolated test game
+    const testGame = new GoGame(this.size);
+    testGame.info = { ...this.info };
+    if (this.handicap >= 2) {
+      testGame.applyHandicap(this.handicap);
+    }
+
+    // Replay moves prior to the adjusted move
+    for (let i = 1; i < stepIndex; i++) {
+      const node = this.history[i];
+      if (node.coord) {
+        const res = testGame.playMove(node.coord.x, node.coord.y);
+        if (!res.success) {
+          return { success: false, error: `Internal replay error at move ${i}: ${res.error}` };
+        }
+      } else {
+        testGame.playMove(null, null);
+      }
+      testGame.history[i].comment = node.comment || '';
+    }
+
+    // Play the adjusted move at stepIndex
+    const resAdjusted = testGame.playMove(newX, newY);
+    if (!resAdjusted.success) {
+      return { success: false, error: `Illegal move at step ${stepIndex}: ${resAdjusted.error}` };
+    }
+    testGame.history[stepIndex].comment = targetNode.comment || '';
+
+    // Replay subsequent moves
+    for (let i = stepIndex + 1; i < this.history.length; i++) {
+      const node = this.history[i];
+      if (node.coord) {
+        const res = testGame.playMove(node.coord.x, node.coord.y);
+        if (!res.success) {
+          const playerName = node.player === 1 ? 'Black' : 'White';
+          const coordName = this.coordToReadable(node.coord.x, node.coord.y);
+          return {
+            success: false,
+            error: `Conflict at move ${i} (${playerName} at ${coordName}): ${res.error}`
+          };
+        }
+      } else {
+        testGame.playMove(null, null);
+      }
+      testGame.history[i].comment = node.comment || '';
+    }
+
+    // Verification successful! Atomically commit the adjusted history
+    const prevStep = this.currentStep;
+    this.history = testGame.history;
+    this.board = testGame.board;
+    this.captures = testGame.captures;
+    this.turn = testGame.turn;
+    this.currentStep = Math.min(prevStep, this.history.length - 1);
+    this.jumpToStep(this.currentStep);
+
+    return { success: true, count: this.history.length - 1 };
+  }
 }
+

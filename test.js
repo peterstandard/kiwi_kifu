@@ -12,6 +12,7 @@ import { DimmerService } from './js/services/dimmer.js';
 import { computeNextVersion } from './scripts/bump.js';
 import { territoryScoring, finalTerritoryScore, areaScoring, finalAreaScore, BLACK, WHITE, EMPTY } from './js/services/goscorer.js';
 import { BoardGestures } from './js/board/gestures.js';
+import { BoardRenderer } from './js/board/renderer.js';
 
 // Setup in-memory mock for localStorage in Node.js test environment
 if (!globalThis.localStorage) {
@@ -568,6 +569,88 @@ await test('New Game options: Save to library vs Discard without saving', () => 
   game.reset(); // Discard without archiveGame()
   lib = StorageService.getLibrary();
   assert.strictEqual(lib.length, 1, 'Discarded game was not added to library');
+});
+
+await test('Board export SVG generation: Numbered vs Unnumbered (Clean)', () => {
+  const renderer = new BoardRenderer({});
+  const game = new GoGame(19);
+  game.playMove(3, 3); // Move 1: Black D16 (or D4 depending on coord)
+  game.playMove(15, 15); // Move 2: White Q4
+  game.playMove(15, 3); // Move 3: Black Q16
+
+  // Numbered export
+  const svgNumbered = renderer.generateExportSvg(game, 'all');
+  assert.ok(svgNumbered.startsWith('<svg'), 'Starts with SVG tag');
+  assert.ok(svgNumbered.includes('viewBox="0 0 596 596"'), 'Viewbox is set');
+  assert.ok(svgNumbered.includes('id="exp-markers"'), 'Has markers group');
+  // Check that the markers group contains move number text elements
+  const markersMatchNumbered = svgNumbered.match(/<g id="exp-markers">(.*?)<\/g>/s);
+  assert.ok(markersMatchNumbered && markersMatchNumbered[1].includes('>1<'), 'Markers group has move 1');
+  assert.ok(markersMatchNumbered && markersMatchNumbered[1].includes('>2<'), 'Markers group has move 2');
+  assert.ok(markersMatchNumbered && markersMatchNumbered[1].includes('>3<'), 'Markers group has move 3');
+  assert.ok(svgNumbered.includes('id="exp-wood-grad"'), 'Has self-contained defs');
+
+  // Clean unnumbered export
+  const svgClean = renderer.generateExportSvg(game, 'none');
+  assert.ok(svgClean.startsWith('<svg'), 'Starts with SVG tag');
+  const markersMatchClean = svgClean.match(/<g id="exp-markers">(.*?)<\/g>/s);
+  assert.ok(markersMatchClean && !markersMatchClean[1].includes('>1<'), 'Markers group does not have move 1');
+  assert.ok(markersMatchClean && !markersMatchClean[1].includes('>2<'), 'Markers group does not have move 2');
+  assert.ok(markersMatchClean && !markersMatchClean[1].includes('>3<'), 'Markers group does not have move 3');
+  assert.ok(svgClean.includes('filter="url(#exp-stone-shadow)"'), 'Has stones rendered');
+});
+
+await test('findMoveAtCoord: accurately tracks move step of stones on board', () => {
+  const game = new GoGame(19);
+  game.playMove(3, 3); // Move 1: Black at (3,3)
+  game.playMove(15, 15); // Move 2: White at (15,15)
+  game.playMove(3, 4); // Move 3: Black at (3,4)
+
+  assert.strictEqual(game.findMoveAtCoord(3, 3), 1, 'Stone at (3,3) was played at move 1');
+  assert.strictEqual(game.findMoveAtCoord(15, 15), 2, 'Stone at (15,15) was played at move 2');
+  assert.strictEqual(game.findMoveAtCoord(3, 4), 3, 'Stone at (3,4) was played at move 3');
+  assert.strictEqual(game.findMoveAtCoord(0, 0), null, 'Empty point returns null');
+
+  // Handicap stone test
+  const handicapGame = new GoGame(19);
+  handicapGame.applyHandicap(2); // Points at (3,15) and (15,3)
+  assert.strictEqual(handicapGame.findMoveAtCoord(3, 15), 0, 'Handicap stone returns 0');
+});
+
+await test('adjustMove: safely relocates historical move and re-validates future moves', () => {
+  const game = new GoGame(19);
+  game.playMove(3, 3); // Move 1: Black (3,3)
+  game.playMove(15, 15); // Move 2: White (15,15)
+  game.playMove(15, 3); // Move 3: Black (15,3)
+  game.playMove(3, 15); // Move 4: White (3,15)
+  game.setComment('Important white approach');
+
+  // Move 1 was placed at (3,3). Let's adjust Move 1 to (3,4)
+  const res = game.adjustMove(1, 3, 4);
+  assert.strictEqual(res.success, true, 'Adjustment succeeded');
+  assert.strictEqual(game.board[3][3], 0, 'Old point (3,3) is now empty');
+  assert.strictEqual(game.board[4][3], 1, 'New point (3,4) now has Black stone');
+  assert.strictEqual(game.history.length, 5, 'History length preserved');
+  assert.strictEqual(game.history[1].coord.x, 3);
+  assert.strictEqual(game.history[1].coord.y, 4);
+  assert.strictEqual(game.history[4].comment, 'Important white approach', 'Comment preserved');
+});
+
+await test('adjustMove: safely rejects collisions without altering game state', () => {
+  const game = new GoGame(19);
+  game.playMove(3, 3); // Move 1: Black (3,3)
+  game.playMove(15, 15); // Move 2: White (15,15)
+  game.playMove(15, 3); // Move 3: Black (15,3)
+
+  // Attempting to move Move 1 to (15,15) which is occupied by Move 2!
+  const res = game.adjustMove(1, 15, 15);
+  assert.strictEqual(res.success, false, 'Should be rejected');
+  assert.ok(res.error.includes('Conflict at move 2'), 'Error mentions conflict at move 2');
+
+  // Verify game state was NOT corrupted
+  assert.strictEqual(game.history.length, 4, 'History is still 3 moves');
+  assert.strictEqual(game.board[3][3], 1, 'Original stone at (3,3) is still intact');
+  assert.strictEqual(game.board[15][15], 2, 'White stone at (15,15) is still intact');
 });
 
 console.log(`\nAll ${passed} invariant tests passed! 🎯\n`);

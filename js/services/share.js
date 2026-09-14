@@ -140,4 +140,91 @@ export class ShareService {
     }
     throw new Error('Web Share API not supported');
   }
+
+  /**
+   * Rasterizes an SVG string onto an offscreen canvas and returns a PNG Blob.
+   * Runs client-side without external dependencies.
+   */
+  static async exportSvgToPngBlob(svgString, targetWidth = 1200, targetHeight = 1200) {
+    if (typeof window === 'undefined' || typeof Image === 'undefined' || typeof document === 'undefined') {
+      return null;
+    }
+    return new Promise((resolve, reject) => {
+      const blob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const img = new Image();
+
+      img.onload = () => {
+        try {
+          const canvas = document.createElement('canvas');
+          canvas.width = targetWidth;
+          canvas.height = targetHeight;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+            ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
+          }
+          URL.revokeObjectURL(url);
+          canvas.toBlob((pngBlob) => {
+            if (pngBlob) {
+              resolve(pngBlob);
+            } else {
+              reject(new Error('Canvas toBlob returned null'));
+            }
+          }, 'image/png');
+        } catch (err) {
+          URL.revokeObjectURL(url);
+          reject(err);
+        }
+      };
+
+      img.onerror = (err) => {
+        URL.revokeObjectURL(url);
+        reject(new Error('Failed to rasterize SVG image'));
+      };
+
+      img.src = url;
+    });
+  }
+
+  /**
+   * Shares PNG file via Web Share API if supported by browser/OS,
+   * or falls back to direct browser download.
+   */
+  static async shareOrDownloadPng(pngBlob, filename, title) {
+    if (typeof window === 'undefined') return { downloaded: false };
+
+    // 1. Try mobile Web Share API with file attachment
+    if (typeof navigator !== 'undefined' && navigator.canShare && typeof File !== 'undefined') {
+      try {
+        const file = new File([pngBlob], filename, { type: 'image/png' });
+        if (navigator.canShare({ files: [file] })) {
+          await navigator.share({
+            files: [file],
+            title: title,
+            text: title
+          });
+          return { shared: true };
+        }
+      } catch (err) {
+        if (err.name === 'AbortError') {
+          return { cancelled: true };
+        }
+        console.warn('Web Share file attachment failed, falling back to download', err);
+      }
+    }
+
+    // 2. Direct browser download fallback
+    const downloadUrl = URL.createObjectURL(pngBlob);
+    const a = document.createElement('a');
+    a.href = downloadUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(downloadUrl), 2500);
+    return { downloaded: true };
+  }
 }
+

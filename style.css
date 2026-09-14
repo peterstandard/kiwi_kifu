@@ -920,12 +920,20 @@ body {
   color: var(--text-muted);
 }
 
+.modal-library-dialog {
+  max-width: 500px;
+  max-height: 85vh;
+  max-height: 85dvh;
+}
+
 .saved-games-list {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  max-height: 280px;
+  max-height: 55vh;
+  max-height: 55dvh;
   overflow-y: auto;
+  padding-right: 2px;
 }
 
 .saved-game-item {
@@ -974,15 +982,33 @@ body {
 }
 
 .saved-game-title {
-  font-size: 0.9rem;
+  font-size: 0.88rem;
   font-weight: 600;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+  gap: 1px;
+}
+
+.saved-game-player {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
+.saved-game-player-white {
+  color: var(--text-main);
+}
+
+.saved-game-vs {
+  font-size: 0.74rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  margin-right: 2px;
+}
+
 .saved-game-color {
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   font-weight: 500;
   color: var(--text-muted);
 }

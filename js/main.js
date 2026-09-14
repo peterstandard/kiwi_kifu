@@ -136,6 +136,8 @@ export class KiwiKifuUI {
     this.scoringRulesetBadge = document.getElementById('scoring-ruleset-badge');
     this.scoreBlackName = document.getElementById('score-black-name');
     this.scoreWhiteName = document.getElementById('score-white-name');
+    this.scoreBlackTotal = document.getElementById('score-black-total');
+    this.scoreWhiteTotal = document.getElementById('score-white-total');
     this.scoreBlackLine1 = document.getElementById('score-black-line1') || document.getElementById('score-black-terr');
     this.scoreBlackLine2 = document.getElementById('score-black-line2') || document.getElementById('score-black-caps');
     this.scoreWhiteLine1 = document.getElementById('score-white-line1') || document.getElementById('score-white-terr');
@@ -887,6 +889,7 @@ export class KiwiKifuUI {
       return;
     }
 
+    if (this.scoringMode) this.exitScoringMode();
     if (this.game.history.length > 2) {
       this.archiveCurrentGame();
     }
@@ -955,7 +958,10 @@ export class KiwiKifuUI {
             ${favIcon}
           </button>
           <div class="saved-game-info" data-id="${item.id}">
-            <div class="saved-game-title">${this.escapeHtml(item.black)} <span class="saved-game-color">(B)</span> vs ${this.escapeHtml(item.white)} <span class="saved-game-color">(W)</span></div>
+            <div class="saved-game-title">
+              <div class="saved-game-player">${this.escapeHtml(item.black)} <span class="saved-game-color">(B)</span></div>
+              <div class="saved-game-player saved-game-player-white"><span class="saved-game-vs">vs</span> ${this.escapeHtml(item.white)} <span class="saved-game-color">(W)</span></div>
+            </div>
             <div class="saved-game-meta">${item.date || 'Unknown date'} • ${item.moves || 0} moves${resultHtml}</div>
           </div>
           <div class="saved-game-actions">
@@ -969,6 +975,7 @@ export class KiwiKifuUI {
       const handleOpen = (id) => {
         const target = library.find(g => g.id === id);
         if (target && target.sgf) {
+          if (this.scoringMode) this.exitScoringMode();
           if (this.game.history.length > 2) this.archiveCurrentGame();
           this.game.loadSgf(target.sgf);
           this.activeGameId = target.id;
@@ -1176,6 +1183,7 @@ export class KiwiKifuUI {
   async checkUrlHashGame() {
     const decodedSgf = await ShareService.parseUrlHash();
     if (decodedSgf) {
+      if (this.scoringMode) this.exitScoringMode();
       if (this.game.history.length > 2) {
         this.archiveCurrentGame();
       }

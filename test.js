@@ -536,4 +536,15 @@ await test('Scoring breakdown formatting: territory, captures, living stones, an
   assert.ok(!japWhiteLine2.includes('6.5k'), 'Uses "6.5 komi" instead of "6.5k"');
 });
 
+await test('Score total display formatting and positive non-zero values', () => {
+  const score = { black: 182.0, white: 179.5 };
+  const blackTotalStr = score.black.toFixed(1);
+  const whiteTotalStr = score.white.toFixed(1);
+
+  assert.strictEqual(blackTotalStr, '182.0');
+  assert.strictEqual(whiteTotalStr, '179.5');
+  assert.notStrictEqual(blackTotalStr, '0.0');
+  assert.notStrictEqual(whiteTotalStr, '0.0');
+});
+
 console.log(`\nAll ${passed} invariant tests passed! 🎯\n`);

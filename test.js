@@ -547,4 +547,27 @@ await test('Score total display formatting and positive non-zero values', () => 
   assert.notStrictEqual(whiteTotalStr, '0.0');
 });
 
+await test('New Game options: Save to library vs Discard without saving', () => {
+  StorageService.clearLibrary();
+  const game = new GoGame(19);
+  game.playMove(3, 3);
+  game.playMove(15, 15);
+
+  // Scenario 1: User saves before new game
+  StorageService.archiveGame(game);
+  let lib = StorageService.getLibrary();
+  assert.strictEqual(lib.length, 1, 'Archived game saved to library');
+
+  // Scenario 2: User resets game
+  game.reset();
+  assert.strictEqual(game.history.length, 1);
+  assert.strictEqual(game.currentStep, 0);
+
+  // Scenario 3: User plays and discards
+  game.playMove(9, 9);
+  game.reset(); // Discard without archiveGame()
+  lib = StorageService.getLibrary();
+  assert.strictEqual(lib.length, 1, 'Discarded game was not added to library');
+});
+
 console.log(`\nAll ${passed} invariant tests passed! 🎯\n`);

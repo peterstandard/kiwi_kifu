@@ -170,6 +170,7 @@ export class KiwiKifuUI {
     this.modalSgf = document.getElementById('modal-sgf');
     this.modalLibrary = document.getElementById('modal-library');
     this.modalShare = document.getElementById('modal-share');
+    this.modalNewGame = document.getElementById('modal-new-game');
 
     this.qrCodeContainer = document.getElementById('qr-code-container');
     this.inputShareUrl = document.getElementById('input-share-url');
@@ -322,6 +323,15 @@ export class KiwiKifuUI {
       });
     });
 
+    // Close modal when clicking outside on backdrop
+    document.querySelectorAll('.modal-backdrop').forEach(backdrop => {
+      backdrop.addEventListener('click', (e) => {
+        if (e.target === backdrop) {
+          backdrop.classList.add('hidden');
+        }
+      });
+    });
+
     // Modal forms & actions
     document.getElementById('btn-save-info')?.addEventListener('click', () => { this.saveInfoForm(); });
     document.getElementById('btn-copy-sgf')?.addEventListener('click', () => { this.copySgfToClipboard(); });
@@ -330,10 +340,42 @@ export class KiwiKifuUI {
     document.getElementById('input-file-sgf')?.addEventListener('change', (e) => { this.handleSgfFileUpload(e); });
     document.getElementById('btn-clear-library')?.addEventListener('click', () => { this.clearLibrary(); });
 
+    // New Game modal actions
+    document.getElementById('btn-new-game-save')?.addEventListener('click', () => {
+      this.modalNewGame?.classList.add('hidden');
+      if (this.scoringMode) this.exitScoringMode();
+      this.archiveCurrentGame();
+      this.activeGameId = null;
+      this.game.reset();
+      this.gestures.resetZoom();
+      this.saveCurrentGame();
+      this.render();
+      this.showToast('Game saved to library & started new game');
+    });
+
+    document.getElementById('btn-new-game-discard')?.addEventListener('click', () => {
+      this.modalNewGame?.classList.add('hidden');
+      if (this.scoringMode) this.exitScoringMode();
+      this.activeGameId = null;
+      this.game.reset();
+      this.gestures.resetZoom();
+      this.saveCurrentGame();
+      this.render();
+      this.showToast('Started new game (discarded previous)');
+    });
+
     // Keyboard Shortcuts
     window.addEventListener('keydown', (e) => {
       if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName)) {
         return;
+      }
+      if (e.key === 'Escape') {
+        const openModal = document.querySelector('.modal-backdrop:not(.hidden)');
+        if (openModal) {
+          e.preventDefault();
+          openModal.classList.add('hidden');
+          return;
+        }
       }
       if (this.scoringMode) {
         if (e.key === 'Escape') {
@@ -553,19 +595,26 @@ export class KiwiKifuUI {
   }
 
   confirmNewGame() {
-    if (this.scoringMode) this.exitScoringMode();
-    if (this.game.history.length > 2) {
-      if (!confirm('Start a new game? Current game will be saved to your library.')) {
-        return;
-      }
-      this.archiveCurrentGame();
+    if (this.game.history.length <= 1) {
+      if (this.scoringMode) this.exitScoringMode();
+      this.activeGameId = null;
+      this.game.reset();
+      this.gestures.resetZoom();
+      this.saveCurrentGame();
+      this.render();
+      this.showToast('Started new game');
+      return;
     }
-    this.activeGameId = null;
-    this.game.reset();
-    this.gestures.resetZoom();
-    this.saveCurrentGame();
-    this.render();
-    this.showToast('Started new game');
+
+    const moves = this.game.history.length - 1;
+    const bName = this.game.info.blackName || 'Black';
+    const wName = this.game.info.whiteName || 'White';
+    const noteEl = document.getElementById('new-game-status-note');
+    if (noteEl) {
+      noteEl.textContent = `${bName} (B) vs ${wName} (W) • ${moves} ${moves === 1 ? 'move' : 'moves'}`;
+    }
+
+    this.modalNewGame?.classList.remove('hidden');
   }
 
   // --- Territory Scoring Mode ---

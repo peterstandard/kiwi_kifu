@@ -26,6 +26,10 @@ export class KiwiKifuUI {
     this.scoringResult = null;
     this.territoryScoring = null;
 
+    // Single Move Edit mode state
+    this.editingMove = null; // { step, originalCoord, player, returnStep }
+    this.pendingEditCoord = null; // { x, y } for confirm tap mode
+
     this.sound = new SoundFX();
     this.wakeLock = new WakeLockService((active, message) => {
       this.updateWakeLockUI();
@@ -40,6 +44,7 @@ export class KiwiKifuUI {
       () => this.renderer.getMetrics(this.game.size),
       {
         onTap: (clientX, clientY) => this.handleTapAt(clientX, clientY),
+        onLongPress: (clientX, clientY) => this.handleLongPressAt(clientX, clientY),
         onTransformChange: (scale, panX, panY) => this.renderer.applyTransform(scale, panX, panY)
       }
     );
@@ -110,6 +115,16 @@ export class KiwiKifuUI {
     this.confirmCoordText = document.getElementById('confirm-coord-text');
     this.btnConfirmTap = document.getElementById('btn-confirm-tap');
     this.btnCancelTap = document.getElementById('btn-cancel-tap');
+
+    // Single Move Edit UI
+    this.branchModeBanner = document.getElementById('branch-mode-banner');
+    this.branchModeDot = document.getElementById('branch-mode-dot');
+    this.branchModeText = document.getElementById('branch-mode-text');
+    this.editMoveBar = document.getElementById('edit-move-bar');
+    this.editMovePill = document.getElementById('edit-move-pill');
+    this.editMovePrompt = document.getElementById('edit-move-prompt');
+    this.btnCancelEditMove = document.getElementById('btn-cancel-edit-move');
+    this.btnConfirmEditMove = document.getElementById('btn-confirm-edit-move');
 
     // Zoom Controls
     this.btnZoomIn = document.getElementById('btn-zoom-in');
@@ -207,6 +222,14 @@ export class KiwiKifuUI {
       this.pendingMove = null;
       this.hideConfirmBar();
       this.render();
+    });
+
+    // Edit Move Actions
+    this.btnCancelEditMove?.addEventListener('click', () => {
+      this.cancelEditMove();
+    });
+    this.btnConfirmEditMove?.addEventListener('click', () => {
+      this.confirmEditMove();
     });
 
     // Comments
@@ -411,10 +434,11 @@ export class KiwiKifuUI {
   }
 
   render() {
+    const activePending = this.editingMove ? this.pendingEditCoord : this.pendingMove;
     this.renderer.render(
       this.game,
       this.numbersMode,
-      this.pendingMove,
+      activePending,
       this.gestures.scale,
       this.gestures.panX,
       this.gestures.panY,
@@ -422,7 +446,8 @@ export class KiwiKifuUI {
         active: this.scoringMode,
         markedDead: this.markedDead,
         territory: this.territoryScoring
-      }
+      },
+      this.editingMove
     );
     this.updateUIStatus();
   }
@@ -431,6 +456,21 @@ export class KiwiKifuUI {
     const step = this.game.currentStep;
     const total = this.game.history.length - 1;
     const currentNode = this.game.history[step];
+
+    // If in single move edit mode, show distinct status and disable nav buttons
+    if (this.editingMove) {
+      const { step: editStep, player: editPlayer } = this.editingMove;
+      const pName = editPlayer === 1 ? 'Black' : 'White';
+      if (this.turnDot) this.turnDot.className = `stone-dot ${editPlayer === 1 ? 'black' : 'white'}`;
+      if (this.turnText) this.turnText.textContent = `Edit Move #${editStep} (${pName})`;
+      if (this.moveCounter) this.moveCounter.textContent = `Editing #${editStep}`;
+      if (this.lastMoveCoord) this.lastMoveCoord.textContent = 'Relocating';
+      if (this.btnFirst) this.btnFirst.disabled = true;
+      if (this.btnUndo) this.btnUndo.disabled = true;
+      if (this.btnRedo) this.btnRedo.disabled = true;
+      if (this.btnLast) this.btnLast.disabled = true;
+      return;
+    }
 
     // Turn
     const isBlackTurn = this.game.turn === 1;
@@ -476,6 +516,11 @@ export class KiwiKifuUI {
       return;
     }
 
+    if (this.editingMove) {
+      this.handleEditMoveTap(pt.x, pt.y);
+      return;
+    }
+
     if (this.tapMode === 'confirm') {
       if (this.pendingMove && this.pendingMove.x === pt.x && this.pendingMove.y === pt.y) {
         this.pendingMove = null;
@@ -507,8 +552,174 @@ export class KiwiKifuUI {
     this.render();
   }
 
+  handleLongPressAt(clientX, clientY) {
+    if (this.scoringMode) return;
+    const pt = this.gestures.getBoardCoordinatesFromScreen(clientX, clientY);
+    if (!pt) return;
+
+    const color = this.game.board[pt.y][pt.x];
+    if (color === 0) return;
+
+    const moveStep = this.game.findMoveAtCoord(pt.x, pt.y, this.game.currentStep);
+    if (moveStep === 0) {
+      this.showToast('Handicap stones cannot be moved with move adjuster');
+      return;
+    }
+    if (moveStep === null || moveStep < 1) return;
+
+    this.startEditMove(moveStep, pt);
+  }
+
+  startEditMove(moveStep, coord) {
+    if (this.pendingMove) {
+      this.pendingMove = null;
+      this.hideConfirmBar();
+    }
+
+    const returnStep = this.game.currentStep;
+    const targetNode = this.game.history[moveStep];
+    if (!targetNode || !targetNode.coord) return;
+
+    this.editingMove = {
+      step: moveStep,
+      originalCoord: { x: coord.x, y: coord.y },
+      player: targetNode.player,
+      returnStep: returnStep
+    };
+    this.pendingEditCoord = null;
+
+    // Warp view to the historical move step so board context is authentic
+    this.game.jumpToStep(moveStep);
+
+    // Update Top Banner (Amber 'Edit single move mode')
+    this.branchModeBanner?.classList.add('edit-mode-active');
+    if (this.branchModeDot) this.branchModeDot.textContent = '✏️';
+    if (this.branchModeText) this.branchModeText.textContent = 'Edit single move mode';
+
+    // Update Bottom Overlay Bar with Move info and Cancel button
+    if (this.editMovePill) {
+      const pName = targetNode.player === 1 ? 'Black' : 'White';
+      this.editMovePill.textContent = `Move #${moveStep} (${pName})`;
+    }
+    if (this.editMovePrompt) {
+      this.editMovePrompt.textContent = 'Tap new spot to relocate';
+    }
+    this.btnConfirmEditMove?.classList.add('hidden');
+    this.editMoveBar?.classList.remove('hidden');
+
+    this.render();
+    this.showToast(`Editing Move #${moveStep} — tap new intersection`);
+  }
+
+  handleEditMoveTap(x, y) {
+    if (!this.editingMove) return;
+    const { step, originalCoord, returnStep } = this.editingMove;
+
+    // Tapping the same spot cancels the edit
+    if (x === originalCoord.x && y === originalCoord.y) {
+      this.cancelEditMove();
+      this.showToast('Selected same location — edit cancelled.');
+      return;
+    }
+
+    if (this.tapMode === 'confirm') {
+      if (this.pendingEditCoord && this.pendingEditCoord.x === x && this.pendingEditCoord.y === y) {
+        // Tapped the same pending point twice in confirm mode -> execute
+        this.confirmEditMove();
+      } else {
+        // Set pending move location and show confirm button
+        this.pendingEditCoord = { x, y };
+        const coordStr = this.game.coordToReadable(x, y);
+        if (this.editMovePrompt) {
+          this.editMovePrompt.textContent = `Move #${step} → ${coordStr}?`;
+        }
+        this.btnConfirmEditMove?.classList.remove('hidden');
+        this.render();
+      }
+    } else {
+      // Instant mode: immediately attempt to apply the adjustment
+      this.applyEditMove(x, y);
+    }
+  }
+
+  applyEditMove(newX, newY) {
+    if (!this.editingMove) return;
+    const { step, returnStep } = this.editingMove;
+    const res = this.game.adjustMove(step, newX, newY);
+
+    if (res.success) {
+      this.sound.playStone();
+      if (navigator.vibrate) navigator.vibrate(25);
+      this.saveCurrentGame();
+
+      // Clean up edit mode UI
+      this.editingMove = null;
+      this.pendingEditCoord = null;
+      this.editMoveBar?.classList.add('hidden');
+      this.btnConfirmEditMove?.classList.add('hidden');
+      this.branchModeBanner?.classList.remove('edit-mode-active');
+      if (this.branchModeDot) this.branchModeDot.textContent = '●';
+      if (this.branchModeText) this.branchModeText.textContent = 'Single branch mode — overwrites moves';
+
+      // Warp back to the exact step the user was on prior to editing!
+      const targetStep = Math.min(returnStep, this.game.history.length - 1);
+      this.game.jumpToStep(targetStep);
+      this.render();
+
+      const coordStr = this.game.coordToReadable(newX, newY);
+      this.showToast(`Move #${step} relocated to ${coordStr}! 🎯`);
+    } else {
+      if (navigator.vibrate) navigator.vibrate([40, 40, 40]);
+      this.showToast(res.error || 'Cannot adjust move');
+      // Reset pending selection so user can tap another spot or cancel
+      this.pendingEditCoord = null;
+      this.btnConfirmEditMove?.classList.add('hidden');
+      if (this.editMovePrompt) {
+        this.editMovePrompt.textContent = 'Tap new spot to relocate';
+      }
+      this.render();
+    }
+  }
+
+  cancelEditMove() {
+    if (!this.editingMove) return;
+
+    // If a pending destination was selected in confirm mode, first cancel the pending destination
+    if (this.pendingEditCoord) {
+      this.pendingEditCoord = null;
+      this.btnConfirmEditMove?.classList.add('hidden');
+      if (this.editMovePrompt) {
+        this.editMovePrompt.textContent = 'Tap new spot to relocate';
+      }
+      this.render();
+      return;
+    }
+
+    const returnStep = this.editingMove.returnStep;
+    this.editingMove = null;
+    this.pendingEditCoord = null;
+
+    this.editMoveBar?.classList.add('hidden');
+    this.btnConfirmEditMove?.classList.add('hidden');
+    this.branchModeBanner?.classList.remove('edit-mode-active');
+    if (this.branchModeDot) this.branchModeDot.textContent = '●';
+    if (this.branchModeText) this.branchModeText.textContent = 'Single branch mode — overwrites moves';
+
+    // Warp back to the exact step the user was on prior to editing!
+    this.game.jumpToStep(returnStep);
+    this.render();
+    this.showToast(`Edit cancelled (returned to Move ${returnStep})`);
+  }
+
+  confirmEditMove() {
+    if (this.editingMove && this.pendingEditCoord) {
+      this.applyEditMove(this.pendingEditCoord.x, this.pendingEditCoord.y);
+    }
+  }
+
   pass() {
     if (this.scoringMode) return;
+    if (this.editingMove) this.cancelEditMove();
     this.game.playMove(null, null);
     const passedPlayer = this.game.turn === 1 ? 'White' : 'Black';
     this.showToast(`${passedPlayer} passed`);
@@ -532,6 +743,7 @@ export class KiwiKifuUI {
 
   undo() {
     if (this.scoringMode) this.exitScoringMode();
+    if (this.editingMove) this.cancelEditMove();
     if (this.game.undo()) {
       if (this.pendingMove) {
         this.pendingMove = null;
@@ -543,6 +755,7 @@ export class KiwiKifuUI {
 
   redo() {
     if (this.scoringMode) this.exitScoringMode();
+    if (this.editingMove) this.cancelEditMove();
     if (this.game.redo()) {
       if (this.pendingMove) {
         this.pendingMove = null;
@@ -554,6 +767,7 @@ export class KiwiKifuUI {
 
   jumpTo(step) {
     if (this.scoringMode) this.exitScoringMode();
+    if (this.editingMove) this.cancelEditMove();
     if (this.game.jumpToStep(step)) {
       if (this.pendingMove) {
         this.pendingMove = null;

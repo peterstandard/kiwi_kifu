@@ -653,4 +653,61 @@ await test('adjustMove: safely rejects collisions without altering game state', 
   assert.strictEqual(game.board[15][15], 2, 'White stone at (15,15) is still intact');
 });
 
+await test('BoardRenderer: renders translucent dead-stone style with amber halo during editingMove', () => {
+  const stonesGroup = { innerHTML: '' };
+  const markersGroup = { innerHTML: '' };
+  const renderer = new BoardRenderer({
+    stonesGroup,
+    markersGroup
+  });
+
+  const game = new GoGame(19);
+  game.playMove(3, 3); // Move 1: Black (3,3)
+  game.playMove(15, 15); // Move 2: White (15,15)
+
+  const editingMove = {
+    step: 1,
+    originalCoord: { x: 3, y: 3 },
+    player: 1,
+    returnStep: 2
+  };
+
+  renderer.render(game, 'none', null, 1.0, 0, 0, null, editingMove);
+
+  // The stone at (3,3) being edited should be translucent (opacity="0.38")
+  assert.ok(stonesGroup.innerHTML.includes('opacity="0.38"'), 'Edited stone is translucent');
+  // Markers group should contain the dead-stone X mark lines
+  assert.ok(markersGroup.innerHTML.includes('stroke="#ffffff" stroke-width="2.6"'), 'Edited stone has crisp X mark');
+  // Markers group should contain the amber dashed halo
+  assert.ok(markersGroup.innerHTML.includes('stroke="#f59e0b"'), 'Edited stone has amber dashed target ring');
+
+  // The other stone at (15,15) should NOT be translucent
+  assert.ok(stonesGroup.innerHTML.includes('filter="url(#stone-shadow)"'), 'Unedited stone has normal shadow');
+});
+
+await test('adjustMove: preserves viewer returnStep when game has future moves', () => {
+  const game = new GoGame(19);
+  // Play 10 moves
+  for (let i = 0; i < 10; i++) {
+    game.playMove(i, i % 2 === 0 ? 0 : 18);
+  }
+  assert.strictEqual(game.history.length, 11);
+
+  // User was at Move 6 (not move 10!)
+  const userReturnStep = 6;
+  game.jumpToStep(userReturnStep);
+  assert.strictEqual(game.currentStep, 6);
+
+  // Adjust move 2 from (1, 18) to (1, 17)
+  const res = game.adjustMove(2, 1, 17);
+  assert.strictEqual(res.success, true);
+  assert.strictEqual(game.history.length, 11, 'All 10 moves intact');
+
+  // User returnStep can be cleanly restored
+  game.jumpToStep(userReturnStep);
+  assert.strictEqual(game.currentStep, 6, 'View returns to user viewing step 6');
+  assert.strictEqual(game.history[2].coord.x, 1);
+  assert.strictEqual(game.history[2].coord.y, 17);
+});
+
 console.log(`\nAll ${passed} invariant tests passed! 🎯\n`);

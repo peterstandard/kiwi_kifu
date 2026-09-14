@@ -8,6 +8,7 @@ export class BoardGestures {
     this.getMetrics = getMetricsFn;
     this.callbacks = {
       onTap: callbacks.onTap || (() => {}),
+      onLongPress: callbacks.onLongPress || (() => {}),
       onTransformChange: callbacks.onTransformChange || (() => {})
     };
 
@@ -30,6 +31,8 @@ export class BoardGestures {
     this.lastTouchY = 0;
     this.touchStartTime = 0;
     this.lastTouchEndTime = 0;
+    this.longPressTimer = null;
+    this.longPressFired = false;
 
     // Mouse Tracking (Desktop)
     this.isMouseDown = false;
@@ -38,6 +41,8 @@ export class BoardGestures {
     this.lastMouseX = 0;
     this.lastMouseY = 0;
     this.isMouseDragging = false;
+    this.mouseLongPressTimer = null;
+    this.mouseLongPressFired = false;
 
     this.attach();
   }
@@ -58,6 +63,10 @@ export class BoardGestures {
       window.addEventListener('mouseup', (e) => { this.handleMouseUp(e); });
     }
     this.svg.addEventListener('wheel', (e) => { this.handleWheel(e); }, { passive: false });
+    this.svg.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      this.callbacks.onLongPress(e.clientX, e.clientY);
+    });
   }
 
   getScreenToSvgScale() {
@@ -189,6 +198,12 @@ export class BoardGestures {
 
   handleTouchStart(e) {
     this.lastTouchEndTime = Date.now();
+    if (this.longPressTimer) {
+      clearTimeout(this.longPressTimer);
+      this.longPressTimer = null;
+    }
+    this.longPressFired = false;
+
     if (e.touches.length === 1) {
       if (Date.now() - this.pinchEndedTime < 300) {
         this.isDragging = true;
@@ -202,7 +217,22 @@ export class BoardGestures {
       this.lastTouchY = t.clientY;
       this.isDragging = false;
       this.isPinching = false;
+
+      // Start long-press detection timer (450ms)
+      this.longPressTimer = setTimeout(() => {
+        if (!this.isDragging && !this.isPinching) {
+          this.longPressFired = true;
+          if (typeof navigator !== 'undefined' && navigator.vibrate) {
+            try { navigator.vibrate(40); } catch (err) {}
+          }
+          this.callbacks.onLongPress(this.touchStartX, this.touchStartY);
+        }
+      }, 450);
     } else if (e.touches.length === 2) {
+      if (this.longPressTimer) {
+        clearTimeout(this.longPressTimer);
+        this.longPressTimer = null;
+      }
       this.isPinching = true;
       this.isDragging = true;
       const t1 = e.touches[0];
@@ -251,6 +281,10 @@ export class BoardGestures {
       const t = e.touches[0];
       const moved = Math.hypot(t.clientX - this.touchStartX, t.clientY - this.touchStartY);
       if (moved > 8) {
+        if (this.longPressTimer) {
+          clearTimeout(this.longPressTimer);
+          this.longPressTimer = null;
+        }
         this.isDragging = true;
         if (this.scale > 1.05) {
           const svgScale = this.getScreenToSvgScale();
@@ -272,6 +306,10 @@ export class BoardGestures {
 
   handleTouchEnd(e) {
     this.lastTouchEndTime = Date.now();
+    if (this.longPressTimer) {
+      clearTimeout(this.longPressTimer);
+      this.longPressTimer = null;
+    }
 
     if (this.isPinching) {
       if (e.touches.length === 0) {
@@ -283,6 +321,13 @@ export class BoardGestures {
 
     if (e.touches.length > 0) return;
     if (Date.now() - this.pinchEndedTime < 300) return;
+
+    if (this.longPressFired) {
+      this.longPressFired = false;
+      this.isDragging = false;
+      return;
+    }
+
     if (this.isDragging) {
       this.isDragging = false;
       return;
@@ -303,12 +348,27 @@ export class BoardGestures {
     this.lastMouseX = e.clientX;
     this.lastMouseY = e.clientY;
     this.isMouseDragging = false;
+    this.mouseLongPressFired = false;
+
+    if (this.mouseLongPressTimer) {
+      clearTimeout(this.mouseLongPressTimer);
+    }
+    this.mouseLongPressTimer = setTimeout(() => {
+      if (!this.isMouseDragging && this.isMouseDown) {
+        this.mouseLongPressFired = true;
+        this.callbacks.onLongPress(this.mouseStartX, this.mouseStartY);
+      }
+    }, 450);
   }
 
   handleMouseMove(e) {
     if (!this.isMouseDown) return;
     const moved = Math.hypot(e.clientX - this.mouseStartX, e.clientY - this.mouseStartY);
-    if (moved > 5) {
+    if (moved > 6) {
+      if (this.mouseLongPressTimer) {
+        clearTimeout(this.mouseLongPressTimer);
+        this.mouseLongPressTimer = null;
+      }
       this.isMouseDragging = true;
       if (this.scale > 1.05) {
         const svgScale = this.getScreenToSvgScale();
@@ -330,7 +390,18 @@ export class BoardGestures {
   handleMouseUp(e) {
     if (!this.isMouseDown) return;
     this.isMouseDown = false;
+    if (this.mouseLongPressTimer) {
+      clearTimeout(this.mouseLongPressTimer);
+      this.mouseLongPressTimer = null;
+    }
     if (Date.now() - this.lastTouchEndTime < 600) return;
+
+    if (this.mouseLongPressFired) {
+      this.mouseLongPressFired = false;
+      this.isMouseDragging = false;
+      return;
+    }
+
     if (this.isMouseDragging) {
       this.isMouseDragging = false;
       return;

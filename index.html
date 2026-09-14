@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=1.4.7">
+  <link rel="stylesheet" href="style.css?v=1.4.8">
   <link rel="icon" href="kiwi_kifu_square.png">
   <link rel="apple-touch-icon" href="kiwi_kifu_square.png">
 </head>
@@ -20,7 +20,7 @@
     <header class="top-nav">
       <div class="brand">
         <img src="kiwi_kifu_stones.png" alt="Kiwi Kifu" class="logo-img">
-        <h1 class="logo-title"><span class="brand-kiwi">kiwi</span> <span class="brand-kifu">kifu</span> <span class="brand-version">v1.4.7</span></h1>
+        <h1 class="logo-title"><span class="brand-kiwi">kiwi</span> <span class="brand-kifu">kifu</span> <span class="brand-version">v1.4.8</span></h1>
       </div>
       <div class="game-meta-badge" id="game-meta-badge" title="Click to edit game info">
         <span id="badge-black-name">Black</span> vs <span id="badge-white-name">White</span>
@@ -109,9 +109,9 @@
     <!-- Board Area -->
     <main class="board-container" id="board-container">
       <div class="board-top-bar">
-        <div class="branch-mode-banner" title="Single branch mode: navigating back and playing will overwrite subsequent moves">
-          <span class="branch-mode-dot">●</span>
-          <span class="branch-mode-text">Single branch mode &mdash; overwrites moves</span>
+        <div class="branch-mode-banner" id="branch-mode-banner" title="Single branch mode: navigating back and playing will overwrite subsequent moves">
+          <span class="branch-mode-dot" id="branch-mode-dot">●</span>
+          <span class="branch-mode-text" id="branch-mode-text">Single branch mode &mdash; overwrites moves</span>
         </div>
         <div class="zoom-controls-group" id="zoom-controls">
           <button id="btn-zoom-in" class="zoom-mini-btn" title="Zoom in" aria-label="Zoom in">+</button>
@@ -163,6 +163,18 @@
         <div class="confirm-actions">
           <button id="btn-cancel-tap" class="btn btn-secondary btn-sm">Cancel</button>
           <button id="btn-confirm-tap" class="btn btn-primary btn-sm">Confirm Stone</button>
+        </div>
+      </div>
+
+      <!-- Edit Single Move Bar Overlay -->
+      <div id="edit-move-bar" class="confirm-bar edit-move-bar hidden">
+        <div class="edit-move-text-group">
+          <span class="edit-move-pill" id="edit-move-pill">Move #12</span>
+          <span id="edit-move-prompt" class="edit-move-prompt">Tap new spot to relocate</span>
+        </div>
+        <div class="confirm-actions">
+          <button id="btn-cancel-edit-move" class="btn btn-secondary btn-sm">Cancel</button>
+          <button id="btn-confirm-edit-move" class="btn btn-primary btn-sm hidden">Confirm Move</button>
         </div>
       </div>
     </main>

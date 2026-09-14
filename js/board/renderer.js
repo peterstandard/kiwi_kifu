@@ -50,7 +50,7 @@ export class BoardRenderer {
     return result;
   }
 
-  render(game, numbersMode = 'last1', pendingMove = null, scale = 1.0, panX = 0, panY = 0, scoringState = null) {
+  render(game, numbersMode = 'last1', pendingMove = null, scale = 1.0, panX = 0, panY = 0, scoringState = null, editingMove = null) {
     const metrics = this.getMetrics(game.size);
     const { size, margin, cellSize, width, height, stoneRadius } = metrics;
 
@@ -148,15 +148,20 @@ export class BoardRenderer {
           const grad = color === 1 ? 'url(#black-grad)' : 'url(#white-grad)';
           const stroke = color === 1 ? '#111' : '#bbb';
           const isDead = isScoring && scoringState.markedDead && scoringState.markedDead[y] && scoringState.markedDead[y][x];
+          const isBeingEdited = editingMove && editingMove.originalCoord && editingMove.originalCoord.x === x && editingMove.originalCoord.y === y;
 
-          if (isDead) {
-            // Dead stone: translucent so underlying grid and status are clear
+          if (isDead || isBeingEdited) {
+            // Translucent stone so underlying grid and status are clear
             stonesSvg += `<circle cx="${cx}" cy="${cy}" r="${stoneRadius}" fill="${grad}" stroke="${stroke}" stroke-width="0.8" opacity="0.38" />`;
-            // Crisp X mark centered on dead stone
+            // Crisp X mark centered on stone (scoring dead stone style)
             const d = stoneRadius * 0.42;
             const xColor = color === 1 ? '#ffffff' : '#c0392b';
             markersSvg += `<line x1="${cx - d}" y1="${cy - d}" x2="${cx + d}" y2="${cy + d}" stroke="${xColor}" stroke-width="2.6" stroke-linecap="round" pointer-events="none" />`;
             markersSvg += `<line x1="${cx - d}" y1="${cy + d}" x2="${cx + d}" y2="${cy - d}" stroke="${xColor}" stroke-width="2.6" stroke-linecap="round" pointer-events="none" />`;
+            if (isBeingEdited) {
+              // Amber dashed target halo around stone being relocated
+              markersSvg += `<circle cx="${cx}" cy="${cy}" r="${stoneRadius + 2.5}" fill="none" stroke="#f59e0b" stroke-width="1.8" stroke-dasharray="4 2.5" pointer-events="none" />`;
+            }
           } else {
             stonesSvg += `<circle cx="${cx}" cy="${cy}" r="${stoneRadius}" fill="${grad}" stroke="${stroke}" stroke-width="0.8" filter="url(#stone-shadow)" />`;
 
@@ -172,13 +177,14 @@ export class BoardRenderer {
       }
     }
 
-    // Last move marker (only during normal play)
+    // Last move marker (only during normal play, not on edited stone)
     if (!isScoring) {
       const currentNode = game.history[game.currentStep];
       if (currentNode && currentNode.coord && currentNode.coord.x !== null) {
         const { x, y } = currentNode.coord;
+        const isBeingEdited = editingMove && editingMove.originalCoord && editingMove.originalCoord.x === x && editingMove.originalCoord.y === y;
         const moveNum = moveNumbers[`${x},${y}`];
-        if (moveNum === undefined) {
+        if (moveNum === undefined && !isBeingEdited) {
           const cx = margin + x * cellSize;
           const cy = margin + y * cellSize;
           const markerColor = currentNode.player === 1 ? '#ffffff' : '#dc2626';
@@ -187,13 +193,14 @@ export class BoardRenderer {
       }
     }
 
-    // Ghost stone for pending move in confirm mode (only during normal play)
+    // Ghost stone for pending move in confirm mode (only during normal play / edit)
     if (!isScoring && pendingMove) {
       const { x, y } = pendingMove;
       const cx = margin + x * cellSize;
       const cy = margin + y * cellSize;
-      const ghostColor = game.turn === 1 ? 'rgba(20, 20, 20, 0.65)' : 'rgba(255, 255, 255, 0.85)';
-      const ghostStroke = game.turn === 1 ? '#fff' : '#000';
+      const ghostPlayer = editingMove ? editingMove.player : game.turn;
+      const ghostColor = ghostPlayer === 1 ? 'rgba(20, 20, 20, 0.65)' : 'rgba(255, 255, 255, 0.85)';
+      const ghostStroke = ghostPlayer === 1 ? '#fff' : '#000';
       markersSvg += `<circle cx="${cx}" cy="${cy}" r="${stoneRadius}" fill="${ghostColor}" stroke="${ghostStroke}" stroke-width="1.5" stroke-dasharray="3 3" filter="url(#ghost-shadow)" pointer-events="none" />`;
     }
 

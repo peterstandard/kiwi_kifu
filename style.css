@@ -272,6 +272,74 @@ body {
   margin: 4px 0;
 }
 
+/* Dropdown Dim Slider Controls */
+.menu-dim-slider-box {
+  padding: 4px 14px 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  background: rgba(0, 0, 0, 0.15);
+  transition: opacity 0.15s ease;
+}
+
+.menu-dim-slider-box.disabled {
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+.dim-slider-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.75rem;
+  color: var(--almond);
+}
+
+.dim-slider-pct {
+  font-weight: 700;
+  color: var(--kiwi-green);
+  font-variant-numeric: tabular-nums;
+}
+
+#input-dim-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.14);
+  outline: none;
+  cursor: pointer;
+  margin: 4px 0;
+}
+
+#input-dim-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--kiwi-green);
+  border: 2px solid #201a16;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+  cursor: pointer;
+  transition: transform 0.1s ease;
+}
+
+#input-dim-slider::-webkit-slider-thumb:active {
+  transform: scale(1.2);
+}
+
+#input-dim-slider::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--kiwi-green);
+  border: 2px solid #201a16;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+  cursor: pointer;
+}
+
 /* Status Bar */
 .status-bar {
   display: flex;
@@ -931,6 +999,29 @@ body {
 .btn-danger-icon:hover {
   background: rgba(200, 50, 50, 0.4);
   border-color: #ef4444;
+}
+
+/* Ambient Dim Overlay (Battery Saver) */
+.ambient-dim-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #000000;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 100;
+  transition: opacity 1.8s ease-in;
+}
+
+.ambient-dim-overlay.dimmed {
+  opacity: var(--dim-opacity, 0.7);
+}
+
+.ambient-dim-overlay.waking {
+  transition: opacity 0.12s ease-out;
+  opacity: 0;
 }
 
 /* Toast */

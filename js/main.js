@@ -9,6 +9,7 @@ import { BoardGestures } from './board/gestures.js';
 import { StorageService } from './services/storage.js';
 import { WakeLockService } from './services/wakelock.js';
 import { ShareService } from './services/share.js';
+import { DimmerService } from './services/dimmer.js';
 
 export class KiwiKifuUI {
   constructor() {
@@ -25,6 +26,7 @@ export class KiwiKifuUI {
     });
 
     this.initDOMElements();
+    this.dimmer = new DimmerService(this.ambientDimOverlay);
     this.renderer = new BoardRenderer(this.elements);
     this.gestures = new BoardGestures(
       this.elements.svg,
@@ -44,6 +46,7 @@ export class KiwiKifuUI {
     this.render();
     this.updateSoundUI();
     this.updateWakeLockUI();
+    this.updateDimmerUI();
     this.registerServiceWorker();
 
     // Re-render once browser finishes flexbox layout
@@ -121,6 +124,14 @@ export class KiwiKifuUI {
     this.menuItemLibrary = document.getElementById('menu-item-library');
 
     this.menuWakeStatus = document.getElementById('menu-wake-status');
+    this.menuItemDim = document.getElementById('menu-item-dim');
+    this.menuDimStatus = document.getElementById('menu-dim-status');
+    this.menuDimIcon = document.getElementById('menu-dim-icon');
+    this.menuDimSliderBox = document.getElementById('menu-dim-slider-box');
+    this.dimLevelPct = document.getElementById('dim-level-pct');
+    this.inputDimSlider = document.getElementById('input-dim-slider');
+    this.ambientDimOverlay = document.getElementById('ambient-dim-overlay');
+
     this.menuSoundStatus = document.getElementById('menu-sound-status');
     this.menuSoundIcon = document.getElementById('menu-sound-icon');
 
@@ -207,6 +218,20 @@ export class KiwiKifuUI {
     });
     this.menuItemWake?.addEventListener('click', () => {
       this.wakeLock.toggle();
+    });
+    this.menuItemDim?.addEventListener('click', () => {
+      const active = this.dimmer.toggleEnabled();
+      this.updateDimmerUI();
+      this.showToast(active ? 'Auto-Dim enabled (45s idle) 🌙' : 'Auto-Dim disabled');
+    });
+    this.inputDimSlider?.addEventListener('input', (e) => {
+      const val = parseInt(e.target.value, 10);
+      if (this.dimLevelPct) this.dimLevelPct.textContent = `${val}%`;
+      this.dimmer.setLevel(val, false);
+    });
+    this.inputDimSlider?.addEventListener('change', (e) => {
+      const val = parseInt(e.target.value, 10);
+      this.dimmer.setLevel(val, true); // brief preview on release!
     });
     this.menuItemSound?.addEventListener('click', () => {
       this.toggleSound();
@@ -771,6 +796,27 @@ export class KiwiKifuUI {
       this.menuWakeStatus.textContent = 'OFF';
       this.menuWakeStatus.classList.remove('active');
       this.wakeDotIndicator?.classList.add('hidden');
+    }
+  }
+
+  updateDimmerUI() {
+    if (!this.dimmer) return;
+    if (this.menuDimStatus) {
+      if (this.dimmer.enabled) {
+        this.menuDimStatus.textContent = 'ON';
+        this.menuDimStatus.classList.add('active');
+        this.menuDimSliderBox?.classList.remove('disabled');
+      } else {
+        this.menuDimStatus.textContent = 'OFF';
+        this.menuDimStatus.classList.remove('active');
+        this.menuDimSliderBox?.classList.add('disabled');
+      }
+    }
+    if (this.dimLevelPct) {
+      this.dimLevelPct.textContent = `${this.dimmer.level}%`;
+    }
+    if (this.inputDimSlider) {
+      this.inputDimSlider.value = this.dimmer.level;
     }
   }
 

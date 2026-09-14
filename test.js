@@ -8,6 +8,7 @@ import { GoGame } from './js/engine/game.js';
 import { coordToSgf, sgfToCoord, coordToReadable } from './js/engine/sgf.js';
 import { StorageService } from './js/services/storage.js';
 import { ShareService } from './js/services/share.js';
+import { DimmerService } from './js/services/dimmer.js';
 
 // Setup in-memory mock for localStorage in Node.js test environment
 if (!globalThis.localStorage) {
@@ -300,6 +301,65 @@ await test('ShareService compression ratio for large game (150 moves)', async ()
   const reduction = 1 - (compressed.length / rawEncoded.length);
   assert.ok(reduction > 0.65, `Expected >65% reduction, got ${Math.round(reduction * 100)}%`);
   assert.ok(compressed.length < 700, `Expected <700 chars, got ${compressed.length}`);
+});
+
+await test('DimmerService level clamping, persistence, and state transitions', async () => {
+  // Mock overlay element
+  const mockSet = new Set();
+  const mockOverlay = {
+    classList: {
+      add: (c) => mockSet.add(c),
+      remove: (c) => mockSet.delete(c),
+      contains: (c) => mockSet.has(c)
+    },
+    style: {
+      properties: {},
+      setProperty(k, v) { this.properties[k] = v; }
+    }
+  };
+
+  let stateUpdates = [];
+  const dimmer = new DimmerService(mockOverlay, (dimmed) => {
+    stateUpdates.push(dimmed);
+  });
+
+  // Default settings
+  assert.strictEqual(dimmer.enabled, true, 'Auto-dim enabled by default');
+  assert.strictEqual(dimmer.level, 70, 'Default dim level is 70%');
+  assert.strictEqual(mockOverlay.style.properties['--dim-opacity'], '0.70');
+
+  // Level bounds clamping (min 30, max 90)
+  dimmer.setLevel(15);
+  assert.strictEqual(dimmer.level, 30, 'Clamped to min 30%');
+  assert.strictEqual(mockOverlay.style.properties['--dim-opacity'], '0.30');
+
+  dimmer.setLevel(99);
+  assert.strictEqual(dimmer.level, 90, 'Clamped to max 90%');
+  assert.strictEqual(mockOverlay.style.properties['--dim-opacity'], '0.90');
+
+  dimmer.setLevel(85);
+  assert.strictEqual(dimmer.level, 85);
+  assert.strictEqual(mockOverlay.style.properties['--dim-opacity'], '0.85');
+
+  // Dim and wake lifecycle
+  dimmer.dimScreen();
+  assert.strictEqual(dimmer.isDimmed, true);
+  assert.strictEqual(stateUpdates[stateUpdates.length - 1], true);
+
+  dimmer.wakeUp(true);
+  assert.strictEqual(dimmer.isDimmed, false);
+  assert.strictEqual(stateUpdates[stateUpdates.length - 1], false);
+
+  // Toggle enabled
+  const toggledOff = dimmer.toggleEnabled();
+  assert.strictEqual(toggledOff, false);
+  assert.strictEqual(dimmer.enabled, false);
+
+  const toggledOn = dimmer.toggleEnabled();
+  assert.strictEqual(toggledOn, true);
+  assert.strictEqual(dimmer.enabled, true);
+
+  dimmer.clearTimer();
 });
 
 console.log(`\nAll ${passed} invariant tests passed! 🎯\n`);

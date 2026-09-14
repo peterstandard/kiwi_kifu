@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=13">
+  <link rel="stylesheet" href="style.css?v=14">
   <link rel="icon" href="kiwi_kifu_square.png">
   <link rel="apple-touch-icon" href="kiwi_kifu_square.png">
 </head>
@@ -43,6 +43,18 @@
         <span class="menu-icon">☕</span>
         <span class="menu-text">Keep Screen Awake</span>
         <span class="menu-badge" id="menu-wake-status">OFF</span>
+      </div>
+      <div class="menu-item" id="menu-item-dim">
+        <span class="menu-icon" id="menu-dim-icon">🌙</span>
+        <span class="menu-text">Auto-Dim on Idle</span>
+        <span class="menu-badge" id="menu-dim-status">ON</span>
+      </div>
+      <div class="menu-dim-slider-box" id="menu-dim-slider-box">
+        <div class="dim-slider-header">
+          <span class="dim-slider-title">Dim Level</span>
+          <span class="dim-slider-pct" id="dim-level-pct">70%</span>
+        </div>
+        <input type="range" id="input-dim-slider" min="30" max="90" step="5" value="70" aria-label="Idle dim level percentage">
       </div>
       <div class="menu-item" id="menu-item-sound">
         <span class="menu-icon" id="menu-sound-icon">🔊</span>
@@ -349,6 +361,9 @@
       </div>
     </div>
   </div>
+
+  <!-- Ambient Dim Overlay (Battery Saver) -->
+  <div id="ambient-dim-overlay" class="ambient-dim-overlay"></div>
 
   <!-- Toast notification -->
   <div id="toast" class="toast hidden"></div>

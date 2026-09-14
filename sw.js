@@ -1,4 +1,4 @@
-const CACHE_NAME = 'kiwikifu-v4';
+const CACHE_NAME = 'kiwikifu-v5';
 const ASSETS = [
   './',
   './index.html',
@@ -15,6 +15,7 @@ const ASSETS = [
   './js/services/storage.js',
   './js/services/wakelock.js',
   './js/services/share.js',
+  './js/services/dimmer.js',
   './kiwi_kifu_square.png',
   './kiwi_kifu_stones.png'
 ];

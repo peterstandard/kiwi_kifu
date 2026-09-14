@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=1.3.0">
+  <link rel="stylesheet" href="style.css?v=1.4.0">
   <link rel="icon" href="kiwi_kifu_square.png">
   <link rel="apple-touch-icon" href="kiwi_kifu_square.png">
 </head>
@@ -20,7 +20,7 @@
     <header class="top-nav">
       <div class="brand">
         <img src="kiwi_kifu_stones.png" alt="Kiwi Kifu" class="logo-img">
-        <h1 class="logo-title"><span class="brand-kiwi">kiwi</span> <span class="brand-kifu">kifu</span> <span class="brand-version">v1.3.0</span></h1>
+        <h1 class="logo-title"><span class="brand-kiwi">kiwi</span> <span class="brand-kifu">kifu</span> <span class="brand-version">v1.4.0</span></h1>
       </div>
       <div class="game-meta-badge" id="game-meta-badge" title="Click to edit game info">
         <span id="badge-black-name">Black</span> vs <span id="badge-white-name">White</span>
@@ -65,6 +65,10 @@
       <div class="menu-item" id="menu-item-info">
         <span class="menu-icon">ℹ️</span>
         <span class="menu-text">Game Information</span>
+      </div>
+      <div class="menu-item" id="menu-item-score">
+        <span class="menu-icon">🧮</span>
+        <span class="menu-text">Score Game (Territory)</span>
       </div>
       <div class="menu-item" id="menu-item-save-overwrite">
         <span class="menu-icon">💾</span>
@@ -163,13 +167,54 @@
       </div>
     </main>
 
+    <!-- Scoring Mode Panel -->
+    <div id="scoring-panel" class="scoring-panel hidden">
+      <div class="scoring-header">
+        <span class="scoring-title">🧮 Territory Scoring</span>
+        <span class="scoring-hint">Tap stones to toggle dead groups</span>
+      </div>
+      <div class="scoring-summary">
+        <div class="score-card score-black">
+          <div class="score-card-header">
+            <span class="score-stone-icon black"></span>
+            <span class="score-player-name" id="score-black-name">Black</span>
+          </div>
+          <div class="score-total" id="score-black-total">0.0</div>
+          <div class="score-breakdown">
+            <span><strong id="score-black-terr">0</strong> terr</span>
+            <span><strong id="score-black-caps">0</strong> caps</span>
+          </div>
+        </div>
+        <div class="score-vs">vs</div>
+        <div class="score-card score-white">
+          <div class="score-card-header">
+            <span class="score-stone-icon white"></span>
+            <span class="score-player-name" id="score-white-name">White</span>
+          </div>
+          <div class="score-total" id="score-white-total">0.0</div>
+          <div class="score-breakdown">
+            <span><strong id="score-white-terr">0</strong> terr</span>
+            <span><strong id="score-white-caps">0</strong> caps</span>
+          </div>
+        </div>
+      </div>
+      <div class="score-lead-banner" id="score-lead-banner">
+        Counting territory...
+      </div>
+      <div class="scoring-actions">
+        <button id="btn-reset-dead" class="btn btn-secondary btn-sm" title="Reset all dead stone marks">Reset Dead</button>
+        <button id="btn-cancel-scoring" class="btn btn-secondary btn-sm" title="Exit scoring mode without saving result">Exit</button>
+        <button id="btn-accept-score" class="btn btn-primary btn-sm" title="Record this final score">Accept Result</button>
+      </div>
+    </div>
+
     <!-- Comment Bar -->
-    <div class="comment-bar">
+    <div class="comment-bar" id="comment-bar">
       <input type="text" id="move-comment-input" placeholder="Add comment for current move..." maxlength="200" autocomplete="off">
     </div>
 
     <!-- Primary Controls -->
-    <footer class="bottom-controls">
+    <footer class="bottom-controls" id="bottom-controls">
       <div class="nav-button-group">
         <button id="btn-first" class="ctrl-btn" title="First Move (Home)" aria-label="First Move">
           <svg class="nav-icon" viewBox="0 0 24 24" width="16" height="16" fill="currentColor">

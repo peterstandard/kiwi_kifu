@@ -10,6 +10,7 @@ import { StorageService } from './js/services/storage.js';
 import { ShareService } from './js/services/share.js';
 import { DimmerService } from './js/services/dimmer.js';
 import { computeNextVersion } from './scripts/bump.js';
+import { territoryScoring, finalTerritoryScore, BLACK, WHITE, EMPTY } from './js/services/goscorer.js';
 
 // Setup in-memory mock for localStorage in Node.js test environment
 if (!globalThis.localStorage) {
@@ -370,6 +371,36 @@ await test('Version bump calculation and semver increments', () => {
   assert.strictEqual(computeNextVersion('1.2.0', '1.3.5'), '1.3.5');
   assert.strictEqual(computeNextVersion('1.2.0', 'v2.0.1'), '2.0.1');
   assert.throws(() => computeNextVersion('1.2.0', 'invalid'));
+});
+
+await test('GoScorer territory counting, dead stone groups, and komi', () => {
+  const size = 9;
+  const stones = Array.from({ length: size }, () => Array(size).fill(EMPTY));
+  const markedDead = Array.from({ length: size }, () => Array(size).fill(false));
+
+  // Divide 9x9 board with Black wall on col 3 and White wall on col 5
+  for (let y = 0; y < size; y++) {
+    stones[y][3] = BLACK;
+    stones[y][5] = WHITE;
+  }
+
+  // Calculate with 3 black captures, 1 white capture, 6.5 komi
+  let score = finalTerritoryScore(stones, markedDead, 3, 1, 6.5);
+  assert.strictEqual(score.black, 30);
+  assert.strictEqual(score.white, 34.5);
+
+  // Mark a dead White invasion stone at (1, 1) inside Black territory
+  stones[1][1] = WHITE;
+  markedDead[1][1] = true;
+
+  const scoring = territoryScoring(stones, markedDead);
+  assert.strictEqual(scoring[1][1].isTerritoryFor, BLACK, 'Dead white stone is territory for Black');
+  assert.strictEqual(scoring[0][8].isTerritoryFor, WHITE, 'White corner is territory for White');
+  assert.strictEqual(scoring[4][4].isTerritoryFor, EMPTY, 'Center dame is neutral');
+
+  score = finalTerritoryScore(stones, markedDead, 3, 1, 6.5);
+  assert.strictEqual(score.black, 31);
+  assert.strictEqual(score.white, 34.5);
 });
 
 console.log(`\nAll ${passed} invariant tests passed! 🎯\n`);

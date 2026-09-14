@@ -1,4 +1,4 @@
-const CACHE_NAME = 'kiwikifu-v1.3.0';
+const CACHE_NAME = 'kiwikifu-v1.4.0';
 const ASSETS = [
   './',
   './index.html',
@@ -16,6 +16,7 @@ const ASSETS = [
   './js/services/wakelock.js',
   './js/services/share.js',
   './js/services/dimmer.js',
+  './js/services/goscorer.js',
   './kiwi_kifu_square.png',
   './kiwi_kifu_stones.png'
 ];

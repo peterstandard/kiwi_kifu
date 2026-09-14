@@ -10,6 +10,7 @@ import { StorageService } from './services/storage.js';
 import { WakeLockService } from './services/wakelock.js';
 import { ShareService } from './services/share.js';
 import { DimmerService } from './services/dimmer.js';
+import { territoryScoring, finalTerritoryScore } from './services/goscorer.js';
 
 export class KiwiKifuUI {
   constructor() {
@@ -18,6 +19,12 @@ export class KiwiKifuUI {
     this.tapMode = 'instant'; // 'instant' | 'confirm'
     this.pendingMove = null; // { x, y }
     this.activeGameId = null; // tracks current loaded/saved game id
+
+    // Territory Scoring state
+    this.scoringMode = false;
+    this.markedDead = null;
+    this.scoringResult = null;
+    this.territoryScoring = null;
 
     this.sound = new SoundFX();
     this.wakeLock = new WakeLockService((active, message) => {
@@ -122,6 +129,23 @@ export class KiwiKifuUI {
     this.menuItemSaveCopy = document.getElementById('menu-item-save-copy');
     this.menuItemSgf = document.getElementById('menu-item-sgf');
     this.menuItemLibrary = document.getElementById('menu-item-library');
+    this.menuItemScore = document.getElementById('menu-item-score');
+
+    // Scoring Panel
+    this.scoringPanel = document.getElementById('scoring-panel');
+    this.scoreBlackName = document.getElementById('score-black-name');
+    this.scoreWhiteName = document.getElementById('score-white-name');
+    this.scoreBlackTotal = document.getElementById('score-black-total');
+    this.scoreWhiteTotal = document.getElementById('score-white-total');
+    this.scoreBlackTerr = document.getElementById('score-black-terr');
+    this.scoreBlackCaps = document.getElementById('score-black-caps');
+    this.scoreWhiteTerr = document.getElementById('score-white-terr');
+    this.scoreWhiteCaps = document.getElementById('score-white-caps');
+    this.scoreLeadBanner = document.getElementById('score-lead-banner');
+    this.btnResetDead = document.getElementById('btn-reset-dead');
+    this.btnCancelScoring = document.getElementById('btn-cancel-scoring');
+    this.btnAcceptScore = document.getElementById('btn-accept-score');
+    this.bottomControls = document.getElementById('bottom-controls');
 
     this.menuWakeStatus = document.getElementById('menu-wake-status');
     this.menuItemDim = document.getElementById('menu-item-dim');
@@ -256,6 +280,14 @@ export class KiwiKifuUI {
       this.dropdownMenu?.classList.add('hidden');
       this.openLibraryModal();
     });
+    this.menuItemScore?.addEventListener('click', () => {
+      this.dropdownMenu?.classList.add('hidden');
+      this.startScoringMode();
+    });
+
+    this.btnResetDead?.addEventListener('click', () => { this.resetDeadStones(); });
+    this.btnCancelScoring?.addEventListener('click', () => { this.exitScoringMode(); });
+    this.btnAcceptScore?.addEventListener('click', () => { this.acceptScore(); });
 
     this.btnCopyShareLink?.addEventListener('click', () => { this.copyShareLink(); });
     this.btnNativeShare?.addEventListener('click', () => { this.handleNativeShare(); });
@@ -281,6 +313,16 @@ export class KiwiKifuUI {
     // Keyboard Shortcuts
     window.addEventListener('keydown', (e) => {
       if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName)) {
+        return;
+      }
+      if (this.scoringMode) {
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          this.exitScoringMode();
+        } else if (e.key === 'Enter') {
+          e.preventDefault();
+          this.acceptScore();
+        }
         return;
       }
       if (e.key === 'ArrowLeft') {
@@ -309,7 +351,12 @@ export class KiwiKifuUI {
       this.pendingMove,
       this.gestures.scale,
       this.gestures.panX,
-      this.gestures.panY
+      this.gestures.panY,
+      {
+        active: this.scoringMode,
+        markedDead: this.markedDead,
+        territory: this.territoryScoring
+      }
     );
     this.updateUIStatus();
   }
@@ -358,6 +405,11 @@ export class KiwiKifuUI {
     const pt = this.gestures.getBoardCoordinatesFromScreen(clientX, clientY);
     if (!pt) return;
 
+    if (this.scoringMode) {
+      this.handleScoringTap(pt.x, pt.y);
+      return;
+    }
+
     if (this.tapMode === 'confirm') {
       if (this.pendingMove && this.pendingMove.x === pt.x && this.pendingMove.y === pt.y) {
         this.pendingMove = null;
@@ -390,15 +442,30 @@ export class KiwiKifuUI {
   }
 
   pass() {
+    if (this.scoringMode) return;
     this.game.playMove(null, null);
-    this.showToast(`${this.game.turn === 1 ? 'White' : 'Black'} passed`);
+    const passedPlayer = this.game.turn === 1 ? 'White' : 'Black';
+    this.showToast(`${passedPlayer} passed`);
     if (navigator.vibrate) navigator.vibrate(20);
     this.sound.playPass();
     this.saveCurrentGame();
     this.render();
+
+    // Check consecutive passes (game over / ready to score)
+    if (this.game.currentStep >= 2) {
+      const cur = this.game.history[this.game.currentStep];
+      const prev = this.game.history[this.game.currentStep - 1];
+      if (cur.coord === null && prev.coord === null) {
+        this.showToast('Both players passed! Opening scoring mode... 🧮', 2500);
+        setTimeout(() => {
+          if (!this.scoringMode) this.startScoringMode();
+        }, 650);
+      }
+    }
   }
 
   undo() {
+    if (this.scoringMode) this.exitScoringMode();
     if (this.game.undo()) {
       if (this.pendingMove) {
         this.pendingMove = null;
@@ -409,6 +476,7 @@ export class KiwiKifuUI {
   }
 
   redo() {
+    if (this.scoringMode) this.exitScoringMode();
     if (this.game.redo()) {
       if (this.pendingMove) {
         this.pendingMove = null;
@@ -419,6 +487,7 @@ export class KiwiKifuUI {
   }
 
   jumpTo(step) {
+    if (this.scoringMode) this.exitScoringMode();
     if (this.game.jumpToStep(step)) {
       if (this.pendingMove) {
         this.pendingMove = null;
@@ -464,6 +533,7 @@ export class KiwiKifuUI {
   }
 
   confirmNewGame() {
+    if (this.scoringMode) this.exitScoringMode();
     if (this.game.history.length > 2) {
       if (!confirm('Start a new game? Current game will be saved to your library.')) {
         return;
@@ -476,6 +546,147 @@ export class KiwiKifuUI {
     this.saveCurrentGame();
     this.render();
     this.showToast('Started new game');
+  }
+
+  // --- Territory Scoring Mode ---
+
+  startScoringMode() {
+    let hasStones = false;
+    for (let y = 0; y < this.game.size; y++) {
+      for (let x = 0; x < this.game.size; x++) {
+        if (this.game.board[y][x] !== 0) {
+          hasStones = true;
+          break;
+        }
+      }
+      if (hasStones) break;
+    }
+    if (!hasStones) {
+      this.showToast('Play stones on the board before scoring!');
+      return;
+    }
+
+    this.scoringMode = true;
+    this.markedDead = Array.from({ length: this.game.size }, () => Array(this.game.size).fill(false));
+
+    // Hide standard play controls and show scoring panel
+    this.bottomControls?.classList.add('hidden');
+    this.commentBar?.classList.add('hidden');
+    this.confirmBar?.classList.add('hidden');
+    this.scoringPanel?.classList.remove('hidden');
+
+    this.recalculateScore();
+    this.render();
+    this.showToast('Scoring Mode: Tap dead stone groups to toggle 🧮');
+  }
+
+  exitScoringMode() {
+    this.scoringMode = false;
+    this.markedDead = null;
+    this.scoringResult = null;
+    this.territoryScoring = null;
+
+    this.scoringPanel?.classList.add('hidden');
+    this.bottomControls?.classList.remove('hidden');
+    this.commentBar?.classList.remove('hidden');
+
+    this.render();
+  }
+
+  handleScoringTap(x, y) {
+    const color = this.game.board[y][x];
+    if (color === 0) return; // Only stone groups can be toggled dead
+
+    const group = this.game.getGroup(x, y);
+    const currentlyDead = !!this.markedDead[y][x];
+    const nextState = !currentlyDead;
+
+    for (const s of group.stones) {
+      this.markedDead[s.y][s.x] = nextState;
+    }
+
+    if (navigator.vibrate) navigator.vibrate(12);
+    this.sound.playStone();
+
+    this.recalculateScore();
+    this.render();
+  }
+
+  resetDeadStones() {
+    this.markedDead = Array.from({ length: this.game.size }, () => Array(this.game.size).fill(false));
+    this.recalculateScore();
+    this.render();
+    this.showToast('Reset all stones to alive');
+  }
+
+  recalculateScore() {
+    const blackCaps = this.game.captures[1] || 0;
+    const whiteCaps = this.game.captures[2] || 0;
+    const komi = parseFloat(this.game.info.komi) || 6.5;
+
+    this.territoryScoring = territoryScoring(this.game.board, this.markedDead);
+    this.scoringResult = finalTerritoryScore(
+      this.game.board,
+      this.markedDead,
+      blackCaps,
+      whiteCaps,
+      komi
+    );
+
+    let blackTerr = 0;
+    let whiteTerr = 0;
+    let deadBlack = 0;
+    let deadWhite = 0;
+
+    for (let y = 0; y < this.game.size; y++) {
+      for (let x = 0; x < this.game.size; x++) {
+        const terr = this.territoryScoring[y][x].isTerritoryFor;
+        if (terr === 1) blackTerr++;
+        else if (terr === 2) whiteTerr++;
+
+        if (this.markedDead[y][x]) {
+          if (this.game.board[y][x] === 1) deadBlack++;
+          else if (this.game.board[y][x] === 2) deadWhite++;
+        }
+      }
+    }
+
+    if (this.scoreBlackName) this.scoreBlackName.textContent = this.game.info.blackName || 'Black';
+    if (this.scoreWhiteName) this.scoreWhiteName.textContent = this.game.info.whiteName || 'White';
+    if (this.scoreBlackTotal) this.scoreBlackTotal.textContent = this.scoringResult.black.toFixed(1);
+    if (this.scoreWhiteTotal) this.scoreWhiteTotal.textContent = this.scoringResult.white.toFixed(1);
+
+    if (this.scoreBlackTerr) this.scoreBlackTerr.textContent = `${blackTerr}`;
+    if (this.scoreBlackCaps) this.scoreBlackCaps.textContent = `${blackCaps + deadWhite}`;
+    if (this.scoreWhiteTerr) this.scoreWhiteTerr.textContent = `${whiteTerr}`;
+    if (this.scoreWhiteCaps) this.scoreWhiteCaps.textContent = `${whiteCaps + deadBlack} (+${komi}k)`;
+
+    const diff = Math.abs(this.scoringResult.black - this.scoringResult.white);
+    if (this.scoreLeadBanner) {
+      if (this.scoringResult.black > this.scoringResult.white) {
+        this.scoreLeadBanner.textContent = `Black leads by ${diff.toFixed(1)} pts 🏆`;
+      } else if (this.scoringResult.white > this.scoringResult.black) {
+        this.scoreLeadBanner.textContent = `White leads by ${diff.toFixed(1)} pts 🏆`;
+      } else {
+        this.scoreLeadBanner.textContent = `Tie / Jigo (0.0 pts)`;
+      }
+    }
+  }
+
+  acceptScore() {
+    if (!this.scoringResult) return;
+    const diff = Math.abs(this.scoringResult.black - this.scoringResult.white);
+    let resultStr = '0';
+    if (this.scoringResult.black > this.scoringResult.white) {
+      resultStr = `B+${diff.toFixed(1)}`;
+    } else if (this.scoringResult.white > this.scoringResult.black) {
+      resultStr = `W+${diff.toFixed(1)}`;
+    }
+
+    this.game.info.result = resultStr;
+    this.saveCurrentGame();
+    this.exitScoringMode();
+    this.showToast(`Score accepted: ${resultStr}! 🏆`);
   }
 
   // Modals & Storage

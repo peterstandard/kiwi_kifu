@@ -53,18 +53,61 @@ export class BoardGestures {
 
     // Desktop Mouse Drag & Wheel
     this.svg.addEventListener('mousedown', (e) => { this.handleMouseDown(e); });
-    window.addEventListener('mousemove', (e) => { this.handleMouseMove(e); });
-    window.addEventListener('mouseup', (e) => { this.handleMouseUp(e); });
+    if (typeof window !== 'undefined') {
+      window.addEventListener('mousemove', (e) => { this.handleMouseMove(e); });
+      window.addEventListener('mouseup', (e) => { this.handleMouseUp(e); });
+    }
     this.svg.addEventListener('wheel', (e) => { this.handleWheel(e); }, { passive: false });
   }
 
-  screenToSvg(clientX, clientY) {
+  getScreenToSvgScale() {
+    if (this.svg && this.svg.getScreenCTM) {
+      try {
+        const ctm = this.svg.getScreenCTM();
+        if (ctm && ctm.a) {
+          return 1 / ctm.a;
+        }
+      } catch (e) {}
+    }
     const rect = this.svg.getBoundingClientRect();
-    const { width } = this.getMetrics();
-    const svgScale = width / (rect.width || 1);
+    const { width, height } = this.getMetrics();
+    const viewW = width;
+    const viewH = height || width;
+    const scale = Math.min((rect.width || 1) / viewW, (rect.height || 1) / viewH);
+    return 1 / (scale || 1);
+  }
+
+  screenToSvg(clientX, clientY) {
+    if (this.svg && this.svg.getScreenCTM && this.svg.createSVGPoint) {
+      try {
+        const ctm = this.svg.getScreenCTM();
+        if (ctm) {
+          const pt = this.svg.createSVGPoint();
+          pt.x = clientX;
+          pt.y = clientY;
+          const svgPt = pt.matrixTransform(ctm.inverse());
+          return { x: svgPt.x, y: svgPt.y };
+        }
+      } catch (e) {
+        // Fall back below
+      }
+    }
+
+    const rect = this.svg.getBoundingClientRect();
+    const { width, height } = this.getMetrics();
+    const viewW = width;
+    const viewH = height || width;
+
+    // Handle preserveAspectRatio="xMidYMid meet" letterboxing / pillarboxing
+    const scale = Math.min((rect.width || 1) / viewW, (rect.height || 1) / viewH);
+    const renderW = viewW * scale;
+    const renderH = viewH * scale;
+    const offsetX = rect.left + ((rect.width || 1) - renderW) / 2;
+    const offsetY = rect.top + ((rect.height || 1) - renderH) / 2;
+
     return {
-      x: (clientX - rect.left) * svgScale,
-      y: (clientY - rect.top) * svgScale
+      x: (clientX - offsetX) / (scale || 1),
+      y: (clientY - offsetY) / (scale || 1)
     };
   }
 
@@ -210,8 +253,7 @@ export class BoardGestures {
       if (moved > 8) {
         this.isDragging = true;
         if (this.scale > 1.05) {
-          const rect = this.svg.getBoundingClientRect();
-          const svgScale = this.getMetrics().width / (rect.width || 1);
+          const svgScale = this.getScreenToSvgScale();
           const dx = (t.clientX - this.lastTouchX) * svgScale;
           const dy = (t.clientY - this.lastTouchY) * svgScale;
 
@@ -269,8 +311,7 @@ export class BoardGestures {
     if (moved > 5) {
       this.isMouseDragging = true;
       if (this.scale > 1.05) {
-        const rect = this.svg.getBoundingClientRect();
-        const svgScale = this.getMetrics().width / (rect.width || 1);
+        const svgScale = this.getScreenToSvgScale();
         const dx = (e.clientX - this.lastMouseX) * svgScale;
         const dy = (e.clientY - this.lastMouseY) * svgScale;
 

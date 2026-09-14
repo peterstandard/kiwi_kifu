@@ -136,12 +136,14 @@ export class KiwiKifuUI {
     this.scoringRulesetBadge = document.getElementById('scoring-ruleset-badge');
     this.scoreBlackName = document.getElementById('score-black-name');
     this.scoreWhiteName = document.getElementById('score-white-name');
-    this.scoreBlackTotal = document.getElementById('score-black-total');
-    this.scoreWhiteTotal = document.getElementById('score-white-total');
-    this.scoreBlackTerr = document.getElementById('score-black-terr');
-    this.scoreBlackCaps = document.getElementById('score-black-caps');
-    this.scoreWhiteTerr = document.getElementById('score-white-terr');
-    this.scoreWhiteCaps = document.getElementById('score-white-caps');
+    this.scoreBlackLine1 = document.getElementById('score-black-line1') || document.getElementById('score-black-terr');
+    this.scoreBlackLine2 = document.getElementById('score-black-line2') || document.getElementById('score-black-caps');
+    this.scoreWhiteLine1 = document.getElementById('score-white-line1') || document.getElementById('score-white-terr');
+    this.scoreWhiteLine2 = document.getElementById('score-white-line2') || document.getElementById('score-white-caps');
+    this.scoreBlackTerr = this.scoreBlackLine1;
+    this.scoreBlackCaps = this.scoreBlackLine2;
+    this.scoreWhiteTerr = this.scoreWhiteLine1;
+    this.scoreWhiteCaps = this.scoreWhiteLine2;
     this.scoreLeadBanner = document.getElementById('score-lead-banner');
     this.btnResetDead = document.getElementById('btn-reset-dead');
     this.btnCancelScoring = document.getElementById('btn-cancel-scoring');
@@ -655,7 +657,7 @@ export class KiwiKifuUI {
     this.saveCurrentGame();
     this.recalculateScore();
     this.render();
-    this.showToast(`Ruleset: ${nextRules} (Komi: ${this.game.info.komi}) 🧮`);
+    this.showToast(`Ruleset: ${nextRules} (${this.game.info.komi} komi) 🧮`);
   }
 
   recalculateScore() {
@@ -668,9 +670,9 @@ export class KiwiKifuUI {
       if (rules === 'Chinese') {
         this.scoringRulesetBadge.textContent = 'Chinese (Area)';
       } else if (rules === 'AGA') {
-        this.scoringRulesetBadge.textContent = 'AGA (7.5k)';
+        this.scoringRulesetBadge.textContent = `AGA (${komi} komi)`;
       } else {
-        this.scoringRulesetBadge.textContent = 'Japanese';
+        this.scoringRulesetBadge.textContent = 'Japanese (Territory)';
       }
       this.scoringRulesetBadge.title = `Current rules: ${rules}. Click to cycle (Japanese / Chinese / AGA)`;
     }
@@ -701,10 +703,13 @@ export class KiwiKifuUI {
         }
       }
 
-      if (this.scoreBlackTerr) this.scoreBlackTerr.textContent = `${blackStones} stones`;
-      if (this.scoreBlackCaps) this.scoreBlackCaps.textContent = `${blackTerr} terr`;
-      if (this.scoreWhiteTerr) this.scoreWhiteTerr.textContent = `${whiteStones} stones`;
-      if (this.scoreWhiteCaps) this.scoreWhiteCaps.textContent = `${whiteTerr} terr (+${komi}k)`;
+      const blackStoneLabel = blackStones === 1 ? 'living stone' : 'living stones';
+      const whiteStoneLabel = whiteStones === 1 ? 'living stone' : 'living stones';
+
+      if (this.scoreBlackLine1) this.scoreBlackLine1.textContent = `${blackStones} ${blackStoneLabel}`;
+      if (this.scoreBlackLine2) this.scoreBlackLine2.textContent = `${blackTerr} territory`;
+      if (this.scoreWhiteLine1) this.scoreWhiteLine1.textContent = `${whiteStones} ${whiteStoneLabel}`;
+      if (this.scoreWhiteLine2) this.scoreWhiteLine2.textContent = `${whiteTerr} territory (+${komi} komi)`;
     } else {
       // --- Territory Scoring (Japanese) ---
       const blackCaps = this.game.captures[1] || 0;
@@ -737,10 +742,15 @@ export class KiwiKifuUI {
         }
       }
 
-      if (this.scoreBlackTerr) this.scoreBlackTerr.textContent = `${blackTerr} terr`;
-      if (this.scoreBlackCaps) this.scoreBlackCaps.textContent = `${blackCaps + deadWhite} caps`;
-      if (this.scoreWhiteTerr) this.scoreWhiteTerr.textContent = `${whiteTerr} terr`;
-      if (this.scoreWhiteCaps) this.scoreWhiteCaps.textContent = `${whiteCaps + deadBlack} caps (+${komi}k)`;
+      const totalBlackCaps = blackCaps + deadWhite;
+      const totalWhiteCaps = whiteCaps + deadBlack;
+      const blackCapsLabel = totalBlackCaps === 1 ? 'capture' : 'captures';
+      const whiteCapsLabel = totalWhiteCaps === 1 ? 'capture' : 'captures';
+
+      if (this.scoreBlackLine1) this.scoreBlackLine1.textContent = `${blackTerr} territory`;
+      if (this.scoreBlackLine2) this.scoreBlackLine2.textContent = `${totalBlackCaps} ${blackCapsLabel}`;
+      if (this.scoreWhiteLine1) this.scoreWhiteLine1.textContent = `${whiteTerr} territory`;
+      if (this.scoreWhiteLine2) this.scoreWhiteLine2.textContent = `${totalWhiteCaps} ${whiteCapsLabel} (+${komi} komi)`;
     }
 
     if (this.scoreBlackName) this.scoreBlackName.textContent = this.game.info.blackName || 'Black';

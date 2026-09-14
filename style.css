@@ -402,6 +402,8 @@ body {
   overflow: hidden;
   background-color: #121315;
   position: relative;
+  min-height: 0;
+  container-type: size;
 }
 
 .board-top-bar {
@@ -451,6 +453,7 @@ body {
 .board-aspect-box {
   width: 100%;
   max-width: 540px;
+  max-height: calc(100% - 32px);
   aspect-ratio: 1 / 1;
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.7);
   border-radius: 4px;
@@ -458,6 +461,12 @@ body {
   touch-action: none;
   border: 2px solid var(--wood-border);
   position: relative;
+}
+
+@supports (width: 100cqh) {
+  .board-aspect-box {
+    width: min(100%, calc(100cqh - 32px));
+  }
 }
 
 .go-board-svg {
@@ -1121,13 +1130,13 @@ body {
    Territory Scoring Panel
    ========================================================================== */
 .scoring-panel {
-  padding: 10px 14px 14px 14px;
+  padding: 8px 12px 10px 12px;
   background: var(--bg-surface);
   border-top: 1px solid var(--border-color);
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 7px;
   animation: confirmSlideUp 0.18s ease-out;
 }
 
@@ -1150,7 +1159,7 @@ body {
 .scoring-title {
   font-family: 'Fredoka', cursive, sans-serif;
   font-weight: 700;
-  font-size: 0.95rem;
+  font-size: 0.92rem;
   color: var(--kiwi-green-light);
 }
 
@@ -1175,7 +1184,7 @@ body {
 }
 
 .scoring-hint {
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   color: var(--text-muted);
   font-style: italic;
 }
@@ -1191,22 +1200,22 @@ body {
   background: rgba(0, 0, 0, 0.28);
   border: 1px solid var(--border-color);
   border-radius: 8px;
-  padding: 8px 10px;
+  padding: 6px 8px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
+  gap: 1px;
 }
 
 .score-card-header {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
 }
 
 .score-stone-icon {
-  width: 12px;
-  height: 12px;
+  width: 11px;
+  height: 11px;
   border-radius: 50%;
   display: inline-block;
 }
@@ -1222,7 +1231,7 @@ body {
 }
 
 .score-player-name {
-  font-size: 0.82rem;
+  font-size: 0.8rem;
   font-weight: 600;
   color: var(--almond);
   max-width: 95px;
@@ -1232,12 +1241,12 @@ body {
 }
 
 .score-total {
-  font-size: 1.4rem;
+  font-size: 1.25rem;
   font-weight: 700;
   font-family: 'Fredoka', cursive, sans-serif;
   color: #fff;
   line-height: 1.1;
-  margin: 2px 0;
+  margin: 1px 0;
 }
 
 .score-breakdown {
@@ -1247,6 +1256,11 @@ body {
   font-size: 0.68rem;
   color: var(--text-muted);
   line-height: 1.25;
+  text-align: center;
+}
+
+.score-breakdown span {
+  white-space: nowrap;
 }
 
 .score-breakdown strong {
@@ -1254,7 +1268,7 @@ body {
 }
 
 .score-vs {
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   font-weight: 600;
   color: var(--text-muted);
 }
@@ -1263,9 +1277,9 @@ body {
   background: rgba(94, 158, 44, 0.15);
   border: 1px solid rgba(138, 196, 75, 0.35);
   border-radius: 6px;
-  padding: 6px 10px;
+  padding: 4px 8px;
   text-align: center;
-  font-size: 0.88rem;
+  font-size: 0.82rem;
   font-weight: 700;
   color: var(--kiwi-green-light);
 }
@@ -1273,5 +1287,10 @@ body {
 .scoring-actions {
   display: grid;
   grid-template-columns: 1fr 1fr 1.35fr;
-  gap: 8px;
+  gap: 6px;
+}
+
+.scoring-actions .btn {
+  padding: 6px 8px;
+  font-size: 0.8rem;
 }

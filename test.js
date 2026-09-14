@@ -11,6 +11,7 @@ import { ShareService } from './js/services/share.js';
 import { DimmerService } from './js/services/dimmer.js';
 import { computeNextVersion } from './scripts/bump.js';
 import { territoryScoring, finalTerritoryScore, areaScoring, finalAreaScore, BLACK, WHITE, EMPTY } from './js/services/goscorer.js';
+import { BoardGestures } from './js/board/gestures.js';
 
 // Setup in-memory mock for localStorage in Node.js test environment
 if (!globalThis.localStorage) {
@@ -447,6 +448,92 @@ await test('Multiple rulesets: Chinese and AGA area scoring with 7.5 komi', () =
   g4.loadSgf(sgf3);
   assert.strictEqual(g4.info.rules, 'AGA');
   assert.strictEqual(g4.info.komi, 7.5);
+});
+
+await test('BoardGestures screenToSvg accurate with non-square letterboxing and getScreenCTM', () => {
+  const metrics = { size: 19, margin: 28, cellSize: 30, width: 596, height: 596 };
+
+  // 1. Fallback with non-square aspect ratio (mobile height-compressed: 380 wide x 300 tall)
+  const nonSquareSvg = {
+    addEventListener: () => {},
+    getBoundingClientRect: () => ({ left: 10, top: 50, width: 380, height: 300 })
+  };
+  const gesturesFallback = new BoardGestures(nonSquareSvg, () => metrics);
+
+  // In 380x300 container, 596x596 board scale is 300/596
+  // Left letterbox offset = 10 + (380 - 300)/2 = 50. Top offset = 50.
+  // Tap on D4 (3, 15): boardX = 28 + 3*30 = 118, boardY = 28 + 15*30 = 478
+  const clientX = 50 + 118 * (300 / 596);
+  const clientY = 50 + 478 * (300 / 596);
+  const coord = gesturesFallback.getBoardCoordinatesFromScreen(clientX, clientY);
+  assert.deepStrictEqual(coord, { x: 3, y: 15 }, 'Non-square letterbox fallback correctly resolves D4 (3, 15)');
+
+  // Bottom corner T1 (18, 18)
+  const clientBottomX = 50 + 568 * (300 / 596);
+  const clientBottomY = 50 + 568 * (300 / 596);
+  const cornerCoord = gesturesFallback.getBoardCoordinatesFromScreen(clientBottomX, clientBottomY);
+  assert.deepStrictEqual(cornerCoord, { x: 18, y: 18 }, 'Non-square letterbox fallback correctly resolves T1 (18, 18)');
+
+  // 2. Test with mock getScreenCTM
+  const scale = 300 / 596;
+  const ctmSvg = {
+    addEventListener: () => {},
+    getScreenCTM: () => ({
+      a: scale, b: 0, c: 0, d: scale, e: 50, f: 50,
+      inverse: () => ({
+        a: 1 / scale, b: 0, c: 0, d: 1 / scale, e: -50 / scale, f: -50 / scale
+      })
+    }),
+    createSVGPoint: () => ({
+      x: 0, y: 0,
+      matrixTransform(m) {
+        return { x: this.x * m.a + m.e, y: this.y * m.d + m.f };
+      }
+    }),
+    getBoundingClientRect: () => ({ left: 10, top: 50, width: 380, height: 300 })
+  };
+  const gesturesCtm = new BoardGestures(ctmSvg, () => metrics);
+  const coordCtm = gesturesCtm.getBoardCoordinatesFromScreen(clientX, clientY);
+  assert.deepStrictEqual(coordCtm, { x: 3, y: 15 }, 'getScreenCTM accurately maps coordinates without offset');
+});
+
+await test('Scoring breakdown formatting: territory, captures, living stones, and komi spelled out', () => {
+  // Test Area scoring string format
+  const blackStones = 118;
+  const blackTerr = 64;
+  const whiteStones = 110;
+  const whiteTerr = 68;
+  const komi = 7.5;
+
+  const areaBlackLine1 = `${blackStones} ${blackStones === 1 ? 'living stone' : 'living stones'}`;
+  const areaBlackLine2 = `${blackTerr} territory`;
+  const areaWhiteLine1 = `${whiteStones} ${whiteStones === 1 ? 'living stone' : 'living stones'}`;
+  const areaWhiteLine2 = `${whiteTerr} territory (+${komi} komi)`;
+
+  assert.strictEqual(areaBlackLine1, '118 living stones');
+  assert.strictEqual(areaBlackLine2, '64 territory');
+  assert.strictEqual(areaWhiteLine1, '110 living stones');
+  assert.strictEqual(areaWhiteLine2, '68 territory (+7.5 komi)');
+  assert.ok(!areaBlackLine1.includes('terr'), 'No confusing "118 stones terr"');
+
+  // Test Territory scoring string format
+  const japBlackTerr = 64;
+  const japBlackCaps = 12;
+  const japWhiteTerr = 68;
+  const japWhiteCaps = 8;
+  const japKomi = 6.5;
+
+  const japBlackLine1 = `${japBlackTerr} territory`;
+  const japBlackLine2 = `${japBlackCaps} ${japBlackCaps === 1 ? 'capture' : 'captures'}`;
+  const japWhiteLine1 = `${japWhiteTerr} territory`;
+  const japWhiteLine2 = `${japWhiteCaps} ${japWhiteCaps === 1 ? 'capture' : 'captures'} (+${japKomi} komi)`;
+
+  assert.strictEqual(japBlackLine1, '64 territory');
+  assert.strictEqual(japBlackLine2, '12 captures');
+  assert.strictEqual(japWhiteLine1, '68 territory');
+  assert.strictEqual(japWhiteLine2, '8 captures (+6.5 komi)');
+  assert.ok(!japBlackLine2.includes('caps'), 'Uses "captures" instead of "caps"');
+  assert.ok(!japWhiteLine2.includes('6.5k'), 'Uses "6.5 komi" instead of "6.5k"');
 });
 
 console.log(`\nAll ${passed} invariant tests passed! 🎯\n`);

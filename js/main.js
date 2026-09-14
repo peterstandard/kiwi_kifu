@@ -10,7 +10,7 @@ import { StorageService } from './services/storage.js';
 import { WakeLockService } from './services/wakelock.js';
 import { ShareService } from './services/share.js';
 import { DimmerService } from './services/dimmer.js';
-import { territoryScoring, finalTerritoryScore } from './services/goscorer.js';
+import { territoryScoring, finalTerritoryScore, areaScoring, finalAreaScore } from './services/goscorer.js';
 
 export class KiwiKifuUI {
   constructor() {
@@ -133,6 +133,7 @@ export class KiwiKifuUI {
 
     // Scoring Panel
     this.scoringPanel = document.getElementById('scoring-panel');
+    this.scoringRulesetBadge = document.getElementById('scoring-ruleset-badge');
     this.scoreBlackName = document.getElementById('score-black-name');
     this.scoreWhiteName = document.getElementById('score-white-name');
     this.scoreBlackTotal = document.getElementById('score-black-total');
@@ -146,6 +147,7 @@ export class KiwiKifuUI {
     this.btnCancelScoring = document.getElementById('btn-cancel-scoring');
     this.btnAcceptScore = document.getElementById('btn-accept-score');
     this.bottomControls = document.getElementById('bottom-controls');
+    this.inputRuleset = document.getElementById('input-ruleset');
 
     this.menuWakeStatus = document.getElementById('menu-wake-status');
     this.menuItemDim = document.getElementById('menu-item-dim');
@@ -288,6 +290,20 @@ export class KiwiKifuUI {
     this.btnResetDead?.addEventListener('click', () => { this.resetDeadStones(); });
     this.btnCancelScoring?.addEventListener('click', () => { this.exitScoringMode(); });
     this.btnAcceptScore?.addEventListener('click', () => { this.acceptScore(); });
+    this.scoringRulesetBadge?.addEventListener('click', () => { this.cycleRuleset(); });
+
+    this.inputRuleset?.addEventListener('change', (e) => {
+      const newRules = e.target.value;
+      const inputKomi = document.getElementById('input-komi');
+      if (inputKomi) {
+        const curKomi = parseFloat(inputKomi.value);
+        if (newRules === 'Japanese' && (curKomi === 7.5 || isNaN(curKomi))) {
+          inputKomi.value = '6.5';
+        } else if ((newRules === 'Chinese' || newRules === 'AGA') && (curKomi === 6.5 || isNaN(curKomi))) {
+          inputKomi.value = '7.5';
+        }
+      }
+    });
 
     this.btnCopyShareLink?.addEventListener('click', () => { this.copyShareLink(); });
     this.btnNativeShare?.addEventListener('click', () => { this.handleNativeShare(); });
@@ -619,47 +635,118 @@ export class KiwiKifuUI {
     this.showToast('Reset all stones to alive');
   }
 
+  cycleRuleset() {
+    const current = (this.game.info.rules || 'Japanese').trim();
+    let nextRules = 'Japanese';
+    if (current === 'Japanese') nextRules = 'Chinese';
+    else if (current === 'Chinese') nextRules = 'AGA';
+    else nextRules = 'Japanese';
+
+    this.game.info.rules = nextRules;
+
+    // Update komi if on standard default
+    const curKomi = parseFloat(this.game.info.komi);
+    if (nextRules === 'Japanese' && (curKomi === 7.5 || isNaN(curKomi))) {
+      this.game.info.komi = 6.5;
+    } else if ((nextRules === 'Chinese' || nextRules === 'AGA') && (curKomi === 6.5 || isNaN(curKomi))) {
+      this.game.info.komi = 7.5;
+    }
+
+    this.saveCurrentGame();
+    this.recalculateScore();
+    this.render();
+    this.showToast(`Ruleset: ${nextRules} (Komi: ${this.game.info.komi}) 🧮`);
+  }
+
   recalculateScore() {
-    const blackCaps = this.game.captures[1] || 0;
-    const whiteCaps = this.game.captures[2] || 0;
-    const komi = parseFloat(this.game.info.komi) || 6.5;
+    const rules = (this.game.info.rules || 'Japanese').trim();
+    const isAreaScoring = rules === 'Chinese' || rules === 'AGA';
+    const komi = parseFloat(this.game.info.komi) || (isAreaScoring ? 7.5 : 6.5);
 
-    this.territoryScoring = territoryScoring(this.game.board, this.markedDead);
-    this.scoringResult = finalTerritoryScore(
-      this.game.board,
-      this.markedDead,
-      blackCaps,
-      whiteCaps,
-      komi
-    );
+    // Update ruleset indicator badge
+    if (this.scoringRulesetBadge) {
+      if (rules === 'Chinese') {
+        this.scoringRulesetBadge.textContent = 'Chinese (Area)';
+      } else if (rules === 'AGA') {
+        this.scoringRulesetBadge.textContent = 'AGA (7.5k)';
+      } else {
+        this.scoringRulesetBadge.textContent = 'Japanese';
+      }
+      this.scoringRulesetBadge.title = `Current rules: ${rules}. Click to cycle (Japanese / Chinese / AGA)`;
+    }
 
-    let blackTerr = 0;
-    let whiteTerr = 0;
-    let deadBlack = 0;
-    let deadWhite = 0;
+    if (isAreaScoring) {
+      // --- Area Scoring (Chinese / AGA) ---
+      this.territoryScoring = areaScoring(this.game.board, this.markedDead);
+      this.scoringResult = finalAreaScore(this.game.board, this.markedDead, komi);
 
-    for (let y = 0; y < this.game.size; y++) {
-      for (let x = 0; x < this.game.size; x++) {
-        const terr = this.territoryScoring[y][x].isTerritoryFor;
-        if (terr === 1) blackTerr++;
-        else if (terr === 2) whiteTerr++;
+      let blackStones = 0;
+      let whiteStones = 0;
+      let blackTerr = 0;
+      let whiteTerr = 0;
 
-        if (this.markedDead[y][x]) {
-          if (this.game.board[y][x] === 1) deadBlack++;
-          else if (this.game.board[y][x] === 2) deadWhite++;
+      for (let y = 0; y < this.game.size; y++) {
+        for (let x = 0; x < this.game.size; x++) {
+          const color = this.game.board[y][x];
+          const isDead = !!this.markedDead[y][x];
+          const areaColor = this.territoryScoring[y][x];
+
+          if (color === 1 && !isDead) blackStones++;
+          else if (color === 2 && !isDead) whiteStones++;
+
+          if (color === 0 || isDead) {
+            if (areaColor === 1) blackTerr++;
+            else if (areaColor === 2) whiteTerr++;
+          }
         }
       }
+
+      if (this.scoreBlackTerr) this.scoreBlackTerr.textContent = `${blackStones} stones`;
+      if (this.scoreBlackCaps) this.scoreBlackCaps.textContent = `${blackTerr} terr`;
+      if (this.scoreWhiteTerr) this.scoreWhiteTerr.textContent = `${whiteStones} stones`;
+      if (this.scoreWhiteCaps) this.scoreWhiteCaps.textContent = `${whiteTerr} terr (+${komi}k)`;
+    } else {
+      // --- Territory Scoring (Japanese) ---
+      const blackCaps = this.game.captures[1] || 0;
+      const whiteCaps = this.game.captures[2] || 0;
+
+      this.territoryScoring = territoryScoring(this.game.board, this.markedDead);
+      this.scoringResult = finalTerritoryScore(
+        this.game.board,
+        this.markedDead,
+        blackCaps,
+        whiteCaps,
+        komi
+      );
+
+      let blackTerr = 0;
+      let whiteTerr = 0;
+      let deadBlack = 0;
+      let deadWhite = 0;
+
+      for (let y = 0; y < this.game.size; y++) {
+        for (let x = 0; x < this.game.size; x++) {
+          const terr = this.territoryScoring[y][x].isTerritoryFor;
+          if (terr === 1) blackTerr++;
+          else if (terr === 2) whiteTerr++;
+
+          if (this.markedDead[y][x]) {
+            if (this.game.board[y][x] === 1) deadBlack++;
+            else if (this.game.board[y][x] === 2) deadWhite++;
+          }
+        }
+      }
+
+      if (this.scoreBlackTerr) this.scoreBlackTerr.textContent = `${blackTerr} terr`;
+      if (this.scoreBlackCaps) this.scoreBlackCaps.textContent = `${blackCaps + deadWhite} caps`;
+      if (this.scoreWhiteTerr) this.scoreWhiteTerr.textContent = `${whiteTerr} terr`;
+      if (this.scoreWhiteCaps) this.scoreWhiteCaps.textContent = `${whiteCaps + deadBlack} caps (+${komi}k)`;
     }
 
     if (this.scoreBlackName) this.scoreBlackName.textContent = this.game.info.blackName || 'Black';
     if (this.scoreWhiteName) this.scoreWhiteName.textContent = this.game.info.whiteName || 'White';
     if (this.scoreBlackTotal) this.scoreBlackTotal.textContent = this.scoringResult.black.toFixed(1);
     if (this.scoreWhiteTotal) this.scoreWhiteTotal.textContent = this.scoringResult.white.toFixed(1);
-
-    if (this.scoreBlackTerr) this.scoreBlackTerr.textContent = `${blackTerr}`;
-    if (this.scoreBlackCaps) this.scoreBlackCaps.textContent = `${blackCaps + deadWhite}`;
-    if (this.scoreWhiteTerr) this.scoreWhiteTerr.textContent = `${whiteTerr}`;
-    if (this.scoreWhiteCaps) this.scoreWhiteCaps.textContent = `${whiteCaps + deadBlack} (+${komi}k)`;
 
     const diff = Math.abs(this.scoringResult.black - this.scoringResult.white);
     if (this.scoreLeadBanner) {
@@ -701,6 +788,7 @@ export class KiwiKifuUI {
     setVal('input-white-rank', this.game.info.whiteRank);
     setVal('input-board-size', this.game.size);
     setVal('input-handicap', this.game.handicap);
+    setVal('input-ruleset', this.game.info.rules || 'Japanese');
     setVal('input-komi', this.game.info.komi);
     setVal('input-game-date', this.game.info.date);
     setVal('input-event-name', this.game.info.event);
@@ -716,6 +804,7 @@ export class KiwiKifuUI {
     this.game.info.blackRank = getVal('input-black-rank');
     this.game.info.whiteName = getVal('input-white-name') || 'White';
     this.game.info.whiteRank = getVal('input-white-rank');
+    this.game.info.rules = getVal('input-ruleset') || 'Japanese';
     this.game.info.komi = parseFloat(getVal('input-komi')) || 6.5;
     this.game.info.date = getVal('input-game-date') || new Date().toISOString().split('T')[0];
     this.game.info.event = getVal('input-event-name');

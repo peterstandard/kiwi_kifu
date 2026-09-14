@@ -1129,11 +1129,37 @@ body {
   align-items: center;
 }
 
+.scoring-title-group {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
 .scoring-title {
   font-family: 'Fredoka', cursive, sans-serif;
   font-weight: 700;
   font-size: 0.95rem;
   color: var(--kiwi-green-light);
+}
+
+.scoring-ruleset-badge {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--almond);
+  background: rgba(139, 94, 60, 0.35);
+  border: 1px solid rgba(214, 186, 150, 0.38);
+  padding: 2px 7px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  line-height: 1.2;
+}
+
+.scoring-ruleset-badge:hover, .scoring-ruleset-badge:active {
+  background: rgba(139, 94, 60, 0.6);
+  border-color: var(--kiwi-green-light);
+  color: #fff;
 }
 
 .scoring-hint {

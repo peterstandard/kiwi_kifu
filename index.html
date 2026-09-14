@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=1.4.0">
+  <link rel="stylesheet" href="style.css?v=1.4.1">
   <link rel="icon" href="kiwi_kifu_square.png">
   <link rel="apple-touch-icon" href="kiwi_kifu_square.png">
 </head>
@@ -20,7 +20,7 @@
     <header class="top-nav">
       <div class="brand">
         <img src="kiwi_kifu_stones.png" alt="Kiwi Kifu" class="logo-img">
-        <h1 class="logo-title"><span class="brand-kiwi">kiwi</span> <span class="brand-kifu">kifu</span> <span class="brand-version">v1.4.0</span></h1>
+        <h1 class="logo-title"><span class="brand-kiwi">kiwi</span> <span class="brand-kifu">kifu</span> <span class="brand-version">v1.4.1</span></h1>
       </div>
       <div class="game-meta-badge" id="game-meta-badge" title="Click to edit game info">
         <span id="badge-black-name">Black</span> vs <span id="badge-white-name">White</span>
@@ -68,7 +68,7 @@
       </div>
       <div class="menu-item" id="menu-item-score">
         <span class="menu-icon">🧮</span>
-        <span class="menu-text">Score Game (Territory)</span>
+        <span class="menu-text">Score Game</span>
       </div>
       <div class="menu-item" id="menu-item-save-overwrite">
         <span class="menu-icon">💾</span>
@@ -170,8 +170,11 @@
     <!-- Scoring Mode Panel -->
     <div id="scoring-panel" class="scoring-panel hidden">
       <div class="scoring-header">
-        <span class="scoring-title">🧮 Territory Scoring</span>
-        <span class="scoring-hint">Tap stones to toggle dead groups</span>
+        <div class="scoring-title-group">
+          <span class="scoring-title">🧮 Score Game</span>
+          <button type="button" class="scoring-ruleset-badge" id="scoring-ruleset-badge" title="Click to cycle ruleset (Japanese / Chinese / AGA)">Japanese</button>
+        </div>
+        <span class="scoring-hint">Tap stones to toggle dead</span>
       </div>
       <div class="scoring-summary">
         <div class="score-card score-black">
@@ -314,19 +317,29 @@
         </div>
         <div class="form-row">
           <div class="form-group">
-            <label for="input-komi">Komi</label>
-            <input type="number" id="input-komi" step="0.5" value="6.5">
+            <label for="input-ruleset">Ruleset</label>
+            <select id="input-ruleset">
+              <option value="Japanese" selected>Japanese (Territory)</option>
+              <option value="Chinese">Chinese (Area)</option>
+              <option value="AGA">AGA (Area / 7.5 Komi)</option>
+            </select>
           </div>
           <div class="form-group">
-            <label for="input-game-date">Date</label>
-            <input type="date" id="input-game-date">
+            <label for="input-komi">Komi</label>
+            <input type="number" id="input-komi" step="0.5" value="6.5">
           </div>
         </div>
         <div class="form-row">
           <div class="form-group">
+            <label for="input-game-date">Date</label>
+            <input type="date" id="input-game-date">
+          </div>
+          <div class="form-group">
             <label for="input-event-name">Event / Club</label>
             <input type="text" id="input-event-name" placeholder="e.g. Weekly Go Club">
           </div>
+        </div>
+        <div class="form-row">
           <div class="form-group">
             <label for="input-result">Result</label>
             <input type="text" id="input-result" placeholder="e.g. B+R, W+3.5">

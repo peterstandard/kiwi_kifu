@@ -310,6 +310,10 @@ export class GoGame {
     this.info.date = getProp('DT') || new Date().toISOString().split('T')[0];
     this.info.event = getProp('EV') || '';
     this.info.result = getProp('RE') || '';
+    const ru = (getProp('RU') || 'Japanese').trim();
+    if (/^chinese/i.test(ru)) this.info.rules = 'Chinese';
+    else if (/^aga/i.test(ru)) this.info.rules = 'AGA';
+    else this.info.rules = 'Japanese';
 
     // Handicap
     const ha = parseInt(getProp('HA') || '0', 10);

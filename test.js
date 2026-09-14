@@ -10,7 +10,7 @@ import { StorageService } from './js/services/storage.js';
 import { ShareService } from './js/services/share.js';
 import { DimmerService } from './js/services/dimmer.js';
 import { computeNextVersion } from './scripts/bump.js';
-import { territoryScoring, finalTerritoryScore, BLACK, WHITE, EMPTY } from './js/services/goscorer.js';
+import { territoryScoring, finalTerritoryScore, areaScoring, finalAreaScore, BLACK, WHITE, EMPTY } from './js/services/goscorer.js';
 
 // Setup in-memory mock for localStorage in Node.js test environment
 if (!globalThis.localStorage) {
@@ -401,6 +401,48 @@ await test('GoScorer territory counting, dead stone groups, and komi', () => {
   score = finalTerritoryScore(stones, markedDead, 3, 1, 6.5);
   assert.strictEqual(score.black, 31);
   assert.strictEqual(score.white, 34.5);
+});
+
+await test('Multiple rulesets: Chinese and AGA area scoring with 7.5 komi', () => {
+  const size = 9;
+  const stones = Array.from({ length: size }, () => Array(size).fill(EMPTY));
+  const markedDead = Array.from({ length: size }, () => Array(size).fill(false));
+
+  // Divide 9x9 board: Black wall on col 3 (9 stones), White wall on col 5 (9 stones)
+  for (let y = 0; y < size; y++) {
+    stones[y][3] = BLACK;
+    stones[y][5] = WHITE;
+  }
+
+  // Under Area scoring (Chinese / AGA) with 7.5 komi:
+  // Black has 9 living stones + 27 territory = 36 area
+  // White has 9 living stones + 27 territory = 36 area + 7.5 komi = 43.5 area
+  const areaScore = finalAreaScore(stones, markedDead, 7.5);
+  assert.strictEqual(areaScore.black, 36);
+  assert.strictEqual(areaScore.white, 43.5);
+
+  // Verify SGF round-trip preserves rulesets (Chinese and AGA)
+  const g1 = new GoGame(19);
+  g1.info.rules = 'Chinese';
+  g1.info.komi = 7.5;
+  const sgf1 = g1.toSgf();
+  assert.ok(sgf1.includes('RU[Chinese]'));
+
+  const g2 = new GoGame(19);
+  g2.loadSgf(sgf1);
+  assert.strictEqual(g2.info.rules, 'Chinese');
+  assert.strictEqual(g2.info.komi, 7.5);
+
+  const g3 = new GoGame(19);
+  g3.info.rules = 'AGA';
+  g3.info.komi = 7.5;
+  const sgf3 = g3.toSgf();
+  assert.ok(sgf3.includes('RU[AGA]'));
+
+  const g4 = new GoGame(19);
+  g4.loadSgf(sgf3);
+  assert.strictEqual(g4.info.rules, 'AGA');
+  assert.strictEqual(g4.info.komi, 7.5);
 });
 
 console.log(`\nAll ${passed} invariant tests passed! 🎯\n`);

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'kiwikifu-v5';
+const CACHE_NAME = 'kiwikifu-v1.3.0';
 const ASSETS = [
   './',
   './index.html',

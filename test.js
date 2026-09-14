@@ -9,6 +9,7 @@ import { coordToSgf, sgfToCoord, coordToReadable } from './js/engine/sgf.js';
 import { StorageService } from './js/services/storage.js';
 import { ShareService } from './js/services/share.js';
 import { DimmerService } from './js/services/dimmer.js';
+import { computeNextVersion } from './scripts/bump.js';
 
 // Setup in-memory mock for localStorage in Node.js test environment
 if (!globalThis.localStorage) {
@@ -360,6 +361,15 @@ await test('DimmerService level clamping, persistence, and state transitions', a
   assert.strictEqual(dimmer.enabled, true);
 
   dimmer.clearTimer();
+});
+
+await test('Version bump calculation and semver increments', () => {
+  assert.strictEqual(computeNextVersion('1.2.0', 'patch'), '1.2.1');
+  assert.strictEqual(computeNextVersion('1.2.0', 'minor'), '1.3.0');
+  assert.strictEqual(computeNextVersion('1.2.0', 'major'), '2.0.0');
+  assert.strictEqual(computeNextVersion('1.2.0', '1.3.5'), '1.3.5');
+  assert.strictEqual(computeNextVersion('1.2.0', 'v2.0.1'), '2.0.1');
+  assert.throws(() => computeNextVersion('1.2.0', 'invalid'));
 });
 
 console.log(`\nAll ${passed} invariant tests passed! 🎯\n`);

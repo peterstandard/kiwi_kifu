@@ -1043,6 +1043,33 @@ await test('Layout & Scrolling Invariant: style.css prevents viewport scrolling 
 
   // Verify board aspect box uses safe calc to avoid container overflow
   assert.ok(css.includes('calc(100cqh - 34px)'), 'board-aspect-box uses calc(100cqh - 34px)');
+
+  // Verify board-container eliminates vertical empty voids
+  assert.ok(/board-container\s*\{[^}]*justify-content:\s*flex-start/s.test(css), 'board-container aligns to flex-start');
+  assert.ok(/board-container\s*\{[^}]*background-color:\s*transparent/s.test(css), 'board-container has transparent background');
+
+  // Verify safe area inset support on bottom controls for modern mobile gesture bars
+  assert.ok(css.includes('env(safe-area-inset-bottom'), 'bottom-controls supports safe-area-inset-bottom');
+});
+
+await test('Review Mode Theme & DOM Structure: warm grayish-brown wood saturation and docked branch viewer', () => {
+  const html = fs.readFileSync('./index.html', 'utf8');
+  const css = fs.readFileSync('./style.css', 'utf8');
+
+  // Verify review mode board gradient has warmer brownish-gray stops
+  assert.ok(html.includes('#cbb196'), 'index.html contains warm cedar tone #cbb196');
+  assert.ok(css.includes('--wood-bg-review: #cbb196;'), 'style.css defines --wood-bg-review as #cbb196');
+  assert.ok(!css.includes('--wood-bg-review: #d1c7b7;'), 'style.css no longer uses cement gray #d1c7b7');
+
+  // Verify branch-viewer-bar is docked inside board-container directly below board-aspect-box
+  const boardAspectIndex = html.indexOf('class="board-aspect-box"');
+  const branchViewerIndex = html.indexOf('id="branch-viewer-bar"');
+  const boardCloseTagIndex = html.indexOf('</main>');
+
+  assert.ok(boardAspectIndex !== -1, 'board-aspect-box found');
+  assert.ok(branchViewerIndex !== -1, 'branch-viewer-bar found');
+  assert.ok(branchViewerIndex > boardAspectIndex, 'branch-viewer-bar is placed after board-aspect-box');
+  assert.ok(branchViewerIndex < boardCloseTagIndex, 'branch-viewer-bar is docked inside board-container');
 });
 
 console.log(`\nAll ${passed} invariant tests passed! 🎯\n`);

@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=1.5.1">
+  <link rel="stylesheet" href="style.css?v=1.5.2">
   <link rel="icon" href="kiwi_kifu_square.png">
   <link rel="apple-touch-icon" href="kiwi_kifu_square.png">
 </head>
@@ -20,7 +20,7 @@
     <header class="top-nav">
       <div class="brand">
         <img src="kiwi_kifu_stones.png" alt="Kiwi Kifu" class="logo-img">
-        <h1 class="logo-title"><span class="brand-kiwi">kiwi</span> <span class="brand-kifu">kifu</span> <span class="brand-version">v1.5.1</span></h1>
+        <h1 class="logo-title"><span class="brand-kiwi">kiwi</span> <span class="brand-kifu">kifu</span> <span class="brand-version">v1.5.2</span></h1>
       </div>
       <div class="game-meta-badge" id="game-meta-badge" title="Click to edit game info">
         <span id="badge-black-name">Black</span> vs <span id="badge-white-name">White</span>
@@ -133,9 +133,9 @@
               <stop offset="100%" stop-color="#d39b4f" />
             </linearGradient>
             <linearGradient id="wood-grad-review" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stop-color="#ded7cb" />
-              <stop offset="50%" stop-color="#d1c7b7" />
-              <stop offset="100%" stop-color="#c5b7a5" />
+              <stop offset="0%" stop-color="#dec7af" />
+              <stop offset="50%" stop-color="#cbb196" />
+              <stop offset="100%" stop-color="#b89c7f" />
             </linearGradient>
             <radialGradient id="black-grad" cx="35%" cy="30%" r="65%">
               <stop offset="0%" stop-color="#5a5a5a" />
@@ -165,6 +165,19 @@
             <g id="board-interactive"></g>
           </g>
         </svg>
+      </div>
+
+      <!-- Branch Graph Viewer Bar (Git/Sabaki Tree Graph) -->
+      <div class="branch-viewer-bar hidden" id="branch-viewer-bar">
+        <button id="btn-return-mainline" class="btn-return-mainline hidden" title="Return to Main Line">
+          <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor">
+            <polygon points="17,5 6,12 17,19" />
+          </svg>
+          <span>Main Line</span>
+        </button>
+        <div class="branch-graph-scroll-wrap" id="branch-graph-scroll-wrap">
+          <svg id="branch-graph-svg" class="branch-graph-svg"></svg>
+        </div>
       </div>
 
       <!-- Tap Confirm Bar Overlay (zero-height flex shift) -->
@@ -230,19 +243,6 @@
         <button id="btn-reset-dead" class="btn btn-secondary btn-sm" title="Reset all dead stone marks">Reset Dead</button>
         <button id="btn-cancel-scoring" class="btn btn-secondary btn-sm" title="Exit scoring mode without saving result">Exit</button>
         <button id="btn-accept-score" class="btn btn-primary btn-sm" title="Record this final score">Accept Result</button>
-      </div>
-    </div>
-
-    <!-- Branch Graph Viewer Bar (Git/Sabaki Tree Graph) -->
-    <div class="branch-viewer-bar hidden" id="branch-viewer-bar">
-      <button id="btn-return-mainline" class="btn-return-mainline hidden" title="Return to Main Line">
-        <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor">
-          <polygon points="17,5 6,12 17,19" />
-        </svg>
-        <span>Main Line</span>
-      </button>
-      <div class="branch-graph-scroll-wrap" id="branch-graph-scroll-wrap">
-        <svg id="branch-graph-svg" class="branch-graph-svg"></svg>
       </div>
     </div>
 
@@ -549,6 +549,6 @@
   <div id="toast" class="toast hidden"></div>
 
   <script src="qrcode.min.js"></script>
-  <script type="module" src="js/main.js?v=1.5.1"></script>
+  <script type="module" src="js/main.js?v=1.5.2"></script>
 </body>
 </html>

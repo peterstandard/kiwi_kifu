@@ -27,7 +27,7 @@
 
   /* Board Kaya Wood */
   --wood-bg: #dfa964;
-  --wood-bg-review: #d1c7b7;
+  --wood-bg-review: #cbb196;
   --wood-border: #8B5E3C;
   --grid-line: #45311c;
 
@@ -415,10 +415,10 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  padding: 2px 8px;
+  justify-content: flex-start;
+  padding: 2px 8px 4px 8px;
   overflow: hidden;
-  background-color: #121315;
+  background-color: transparent;
   position: relative;
   min-height: 0;
   container-type: size;
@@ -538,6 +538,11 @@ body {
   .board-aspect-box {
     width: min(100%, 540px, calc(100cqh - 34px));
     max-height: calc(100cqh - 34px);
+  }
+
+  .review-mode .board-aspect-box {
+    width: min(100%, 540px, calc(100cqh - 78px));
+    max-height: calc(100cqh - 78px);
   }
 }
 
@@ -689,12 +694,17 @@ body {
   align-items: center;
   padding: 2px 8px;
   background: var(--bg-surface);
-  border-top: 1px solid var(--border-color);
+  border: 1px solid var(--border-color);
+  border-top: none;
+  border-radius: 0 0 6px 6px;
   gap: 8px;
-  min-height: 36px;
-  max-height: 52px;
+  min-height: 38px;
+  max-height: 48px;
+  width: 100%;
+  max-width: 540px;
   flex-shrink: 0;
   overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
 }
 
 .branch-viewer-bar.hidden {
@@ -798,7 +808,8 @@ body {
 
 /* Comment Bar */
 .comment-bar {
-  padding: 3px 10px;
+  margin-top: auto;
+  padding: 4px 12px;
   background: var(--bg-surface);
   border-top: 1px solid var(--border-color);
   flex-shrink: 0;
@@ -822,13 +833,13 @@ body {
 
 /* Bottom Controls */
 .bottom-controls {
-  padding: 4px 10px 8px 10px;
+  padding: 6px 12px calc(12px + env(safe-area-inset-bottom, 12px)) 12px;
   background: var(--bg-surface);
   border-top: 1px solid var(--border-color);
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
 }
 
 /* Move Scrubber Slider */
@@ -960,7 +971,7 @@ body {
   color: var(--text-main);
   border: 1px solid var(--border-color);
   border-radius: 8px;
-  height: 44px;
+  height: 46px;
   font-size: 0.96rem;
   font-weight: 600;
   display: flex;
@@ -1030,7 +1041,7 @@ body {
 .quick-toggles {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
-  gap: 5px;
+  gap: 6px;
 }
 
 .toggle-btn {
@@ -1038,8 +1049,8 @@ body {
   border: 1px solid var(--border-color);
   border-radius: 6px;
   color: var(--almond);
-  font-size: 0.72rem;
-  padding: 5px 3px;
+  font-size: 0.74rem;
+  padding: 6px 4px;
   text-align: center;
   cursor: pointer;
   white-space: nowrap;
@@ -1552,7 +1563,8 @@ body {
    Territory Scoring Panel
    ========================================================================== */
 .scoring-panel {
-  padding: 8px 12px 10px 12px;
+  margin-top: auto;
+  padding: 8px 12px calc(12px + env(safe-area-inset-bottom, 12px)) 12px;
   background: var(--bg-surface);
   border-top: 1px solid var(--border-color);
   flex-shrink: 0;

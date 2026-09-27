@@ -6,6 +6,7 @@ import { GoGame } from './engine/game.js';
 import { SoundFX } from './audio/sound.js';
 import { BoardRenderer } from './board/renderer.js';
 import { BoardGestures } from './board/gestures.js';
+import { BranchGraph } from './board/branchgraph.js';
 import { StorageService } from './services/storage.js';
 import { WakeLockService } from './services/wakelock.js';
 import { ShareService } from './services/share.js';
@@ -132,12 +133,15 @@ export class KiwiKifuUI {
     this.btnCancelEditMove = document.getElementById('btn-cancel-edit-move');
     this.btnConfirmEditMove = document.getElementById('btn-confirm-edit-move');
 
-    // Branch Viewer UI
+    // Branch Graph UI
     this.branchViewerBar = document.getElementById('branch-viewer-bar');
     this.btnReturnMainline = document.getElementById('btn-return-mainline');
-    this.branchDotsContainer = document.getElementById('branch-dots-container');
-    this.branchForkPills = document.getElementById('branch-fork-pills');
-    this.branchLabelBadge = document.getElementById('branch-label-badge');
+    this.branchGraphScrollWrap = document.getElementById('branch-graph-scroll-wrap');
+    this.branchGraphSvg = document.getElementById('branch-graph-svg');
+    this.branchGraph = new BranchGraph(this.branchGraphScrollWrap, this.branchGraphSvg, {
+      onSelectNode: (node) => this.jumpToNode(node),
+      onActionNode: (node) => this.openBranchActionsModal(node)
+    });
 
     // Zoom Controls
     this.btnZoomIn = document.getElementById('btn-zoom-in');
@@ -773,97 +777,52 @@ export class KiwiKifuUI {
     }
   }
 
+  jumpToNode(node) {
+    if (!node) return;
+    this.game.rebuildHistory(node);
+    this.sound.playStone();
+    this.saveCurrentGame();
+    this.render();
+  }
+
   updateBranchBarUI() {
     if (this.scoringMode || this.editingMove) {
       this.branchViewerBar?.classList.add('hidden');
       return;
     }
 
-    const branchInfo = typeof this.game.getCurrentBranchInfo === 'function' ? this.game.getCurrentBranchInfo() : null;
-    const branches = typeof this.game.getBranchesAtCurrent === 'function' ? this.game.getBranchesAtCurrent() : [];
-
-    if (branchInfo) {
-      // Viewing inside a variation branch
+    if (this.game.hasBranches()) {
       this.branchViewerBar?.classList.remove('hidden');
-      if (this.btnReturnMainline) {
-        this.btnReturnMainline.classList.remove('hidden');
-      }
-      if (this.branchLabelBadge) {
-        this.branchLabelBadge.classList.remove('hidden');
-        this.branchLabelBadge.textContent = `Branch ${branchInfo.branchLetter}`;
-      }
-      if (this.branchForkPills) {
-        this.branchForkPills.innerHTML = '';
-      }
-      if (this.branchDotsContainer) {
-        this.branchDotsContainer.innerHTML = '';
-        branchInfo.branchNodes.forEach((node, idx) => {
-          const dot = document.createElement('button');
-          dot.className = `branch-dot ${idx === branchInfo.currentBranchIndex ? 'active' : ''}`;
-          dot.setAttribute('title', `Move #${node.step}`);
-          dot.setAttribute('aria-label', `Move ${node.step}`);
 
-          dot.addEventListener('click', (e) => {
-            e.stopPropagation();
-            this.game.jumpToStep(node.step);
-            this.render();
-          });
+      const branchInfo = typeof this.game.getCurrentBranchInfo === 'function' ? this.game.getCurrentBranchInfo() : null;
+      if (branchInfo) {
+        this.btnReturnMainline?.classList.remove('hidden');
+      } else {
+        this.btnReturnMainline?.classList.add('hidden');
+      }
 
-          let longPressTimer = null;
-          dot.addEventListener('pointerdown', () => {
-            longPressTimer = setTimeout(() => {
-              this.openBranchActionsModal(node);
-            }, 450);
-          });
-          const cancelLongPress = () => clearTimeout(longPressTimer);
-          dot.addEventListener('pointerup', cancelLongPress);
-          dot.addEventListener('pointercancel', cancelLongPress);
-          dot.addEventListener('contextmenu', (e) => {
-            e.preventDefault();
-            this.openBranchActionsModal(node);
-          });
-
-          this.branchDotsContainer.appendChild(dot);
-        });
-      }
-    } else if (branches && branches.length > 1) {
-      // At a fork point on the main line
-      this.branchViewerBar?.classList.remove('hidden');
-      if (this.btnReturnMainline) {
-        this.btnReturnMainline.classList.add('hidden');
-      }
-      if (this.branchLabelBadge) {
-        this.branchLabelBadge.classList.add('hidden');
-      }
-      if (this.branchDotsContainer) {
-        this.branchDotsContainer.innerHTML = '';
-      }
-      if (this.branchForkPills) {
-        this.branchForkPills.innerHTML = '';
-        branches.forEach(b => {
-          const pill = document.createElement('button');
-          pill.className = `branch-fork-pill ${b.index === 0 ? 'active' : ''}`;
-          pill.textContent = b.index === 0 ? `${b.letter} (Main)` : `Branch ${b.letter}`;
-          pill.addEventListener('click', () => {
-            this.game.switchToBranch(b.index);
-            this.sound.playStone();
-            this.render();
-          });
-          this.branchForkPills.appendChild(pill);
-        });
-      }
+      this.branchGraph?.render(this.game);
     } else {
       this.branchViewerBar?.classList.add('hidden');
     }
   }
 
   openBranchActionsModal(node) {
-    if (!node) return;
+    if (!node || !node.parent) return;
     this.selectedBranchNode = node;
-    const branchInfo = this.game.getCurrentBranchInfo();
-    const branchLetter = branchInfo ? branchInfo.branchLetter : 'B';
+    let isBranch = false;
+    let cur = node;
+    while (cur && cur.parent) {
+      if (cur.parent.children.indexOf(cur) > 0) {
+        isBranch = true;
+        break;
+      }
+      cur = cur.parent;
+    }
+    if (!isBranch) return; // Main line moves cannot be promoted or deleted
+
     if (this.branchActionDesc) {
-      this.branchActionDesc.textContent = `Branch ${branchLetter} • Move #${node.step}`;
+      this.branchActionDesc.textContent = `Variation Move #${node.step} (${node.player === 1 ? 'Black' : 'White'})`;
     }
     this.modalBranchActions?.classList.remove('hidden');
   }
@@ -1672,9 +1631,15 @@ export class KiwiKifuUI {
     }, 2400);
   }
 
+  closeDropdown() {
+    this.dropdownMenu?.classList.add('hidden');
+  }
+
   toggleDropdownMenu() {
     this.updateWakeLockUI();
     this.updateSoundUI();
+    this.updateDimmerUI();
+    this.updateModeUI();
     this.dropdownMenu?.classList.toggle('hidden');
   }
 

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'kiwikifu-v1.5.0';
+const CACHE_NAME = 'kiwikifu-v1.5.1';
 const ASSETS = [
   './',
   './index.html',
@@ -12,6 +12,7 @@ const ASSETS = [
   './js/audio/sound.js',
   './js/board/renderer.js',
   './js/board/gestures.js',
+  './js/board/branchgraph.js',
   './js/services/storage.js',
   './js/services/wakelock.js',
   './js/services/share.js',

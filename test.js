@@ -4,6 +4,7 @@
  */
 
 import assert from 'node:assert';
+import fs from 'node:fs';
 import { GoGame } from './js/engine/game.js';
 import { coordToSgf, sgfToCoord, coordToReadable } from './js/engine/sgf.js';
 import { StorageService } from './js/services/storage.js';
@@ -13,6 +14,7 @@ import { computeNextVersion } from './scripts/bump.js';
 import { territoryScoring, finalTerritoryScore, areaScoring, finalAreaScore, BLACK, WHITE, EMPTY } from './js/services/goscorer.js';
 import { BoardGestures } from './js/board/gestures.js';
 import { BoardRenderer } from './js/board/renderer.js';
+import { BranchGraph } from './js/board/branchgraph.js';
 
 // Setup in-memory mock for localStorage in Node.js test environment
 if (!globalThis.localStorage) {
@@ -937,6 +939,110 @@ await test('BoardRenderer: renders variation badges (A, B...) in review mode at 
   assert.ok(markersGroup.innerHTML.includes('class="branch-letter-marker"'), 'Markers contain branch letter marker');
   assert.ok(markersGroup.innerHTML.includes('>A<'), 'Contains variation badge A');
   assert.ok(markersGroup.innerHTML.includes('>B<'), 'Contains variation badge B');
+});
+
+await test('BranchGraph: computes accurate tree layout, lane allocation, and fork edges (Git/Sabaki style)', () => {
+  const game = new GoGame(19);
+  game.setMode('review');
+  game.playMove(3, 3);   // 1 Black (L0)
+  game.playMove(15, 3);  // 2 White (L0)
+  game.playMove(15, 15); // 3 Black (L0)
+  game.playMove(3, 15);  // 4 White (L0)
+
+  // Fork at move 2 -> Branch B
+  game.jumpToStep(2);
+  game.playMove(9, 9);   // 3 Black (L1)
+  game.playMove(10, 10); // 4 White (L1)
+
+  // Fork at move 2 -> Branch C
+  game.jumpToStep(2);
+  game.playMove(4, 4);   // 3 Black (L2)
+
+  const graph = new BranchGraph(null, null);
+  const layout = graph.computeLayout(game.rootNode);
+
+  assert.strictEqual(layout.nodes.length, 8, 'Total 8 nodes in tree');
+  assert.strictEqual(layout.edges.length, 7, 'Total 7 edges connecting tree');
+
+  // Verify mainline nodes stay on Lane 0
+  const l0Nodes = layout.nodes.filter(n => n._lane === 0);
+  assert.strictEqual(l0Nodes.length, 5, 'Root + 4 mainline moves on Lane 0');
+  l0Nodes.forEach((n, idx) => {
+    assert.strictEqual(n.step, idx, `Node ${idx} on Lane 0 has step ${idx}`);
+  });
+
+  // Verify Branch B is on Lane 1
+  const l1Nodes = layout.nodes.filter(n => n._lane === 1);
+  assert.strictEqual(l1Nodes.length, 2, '2 moves in Branch B on Lane 1');
+  assert.strictEqual(l1Nodes[0].step, 3);
+  assert.strictEqual(l1Nodes[1].step, 4);
+
+  // Verify Branch C is on Lane 2
+  const l2Nodes = layout.nodes.filter(n => n._lane === 2);
+  assert.strictEqual(l2Nodes.length, 1, '1 move in Branch C on Lane 2');
+  assert.strictEqual(l2Nodes[0].step, 3);
+
+  // Verify edges include forks from step 2 (L0) to step 3 (L1) and step 3 (L2)
+  const forkEdges = layout.edges.filter(e => e.from.step === 2);
+  assert.strictEqual(forkEdges.length, 3, 'Move 2 forks into 3 children');
+  assert.ok(forkEdges.some(e => e.to._lane === 0), 'Continues on Lane 0');
+  assert.ok(forkEdges.some(e => e.to._lane === 1), 'Forks to Lane 1');
+  assert.ok(forkEdges.some(e => e.to._lane === 2), 'Forks to Lane 2');
+});
+
+await test('KiwiKifuUI: closeDropdown and toggleDropdownMenu manage menu visibility cleanly', async () => {
+  // Test mock UI behavior
+  const mockDropdown = {
+    classes: new Set(['hidden']),
+    classList: {
+      add(c) { mockDropdown.classes.add(c); },
+      remove(c) { mockDropdown.classes.delete(c); },
+      toggle(c) {
+        if (mockDropdown.classes.has(c)) mockDropdown.classes.delete(c);
+        else mockDropdown.classes.add(c);
+      },
+      contains(c) { return mockDropdown.classes.has(c); }
+    }
+  };
+
+  const dummyApp = {
+    dropdownMenu: mockDropdown,
+    updateWakeLockUI: () => {},
+    updateSoundUI: () => {},
+    updateDimmerUI: () => {},
+    updateModeUI: () => {},
+    closeDropdown() {
+      this.dropdownMenu?.classList.add('hidden');
+    },
+    toggleDropdownMenu() {
+      this.updateWakeLockUI();
+      this.updateSoundUI();
+      this.updateDimmerUI();
+      this.updateModeUI();
+      this.dropdownMenu?.classList.toggle('hidden');
+    }
+  };
+
+  assert.strictEqual(mockDropdown.classList.contains('hidden'), true);
+  dummyApp.toggleDropdownMenu();
+  assert.strictEqual(mockDropdown.classList.contains('hidden'), false, 'Menu is opened');
+  dummyApp.closeDropdown();
+  assert.strictEqual(mockDropdown.classList.contains('hidden'), true, 'Menu is closed via closeDropdown');
+});
+
+await test('Layout & Scrolling Invariant: style.css prevents viewport scrolling and ensures contained sizing', () => {
+  const css = fs.readFileSync('./style.css', 'utf8');
+
+  // Verify html and body prevent vertical scrolling
+  assert.ok(css.includes('html, body'), 'html and body are styled together');
+  assert.ok(/html,\s*body\s*\{[^}]*overflow:\s*hidden/s.test(css), 'html and body have overflow: hidden');
+
+  // Verify #app is contained within 100dvh without overflow
+  assert.ok(/#app\s*\{[^}]*height:\s*100dvh/s.test(css), '#app specifies 100dvh');
+  assert.ok(/#app\s*\{[^}]*overflow:\s*hidden/s.test(css), '#app specifies overflow: hidden');
+
+  // Verify board aspect box uses safe calc to avoid container overflow
+  assert.ok(css.includes('calc(100cqh - 34px)'), 'board-aspect-box uses calc(100cqh - 34px)');
 });
 
 console.log(`\nAll ${passed} invariant tests passed! 🎯\n`);

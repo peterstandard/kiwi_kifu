@@ -43,29 +43,36 @@
   -webkit-tap-highlight-color: transparent;
 }
 
+html, body {
+  height: 100%;
+  height: 100dvh;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   background-color: var(--bg-main);
   color: var(--text-main);
   line-height: 1.4;
-  min-height: 100vh;
-  min-height: 100dvh;
   display: flex;
   flex-direction: column;
-  overflow-x: hidden;
   user-select: none;
   -webkit-user-select: none;
+  overscroll-behavior: none;
 }
 
 #app {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  height: 100%;
   height: 100dvh;
   max-width: 600px;
   margin: 0 auto;
   width: 100%;
   position: relative;
+  overflow: hidden;
 }
 
 /* Header */
@@ -179,6 +186,12 @@ body {
   height: 32px;
   font-size: 1.25rem;
   position: relative;
+}
+
+.hamburger-icon {
+  pointer-events: none;
+  display: inline-block;
+  line-height: 1;
 }
 
 .wake-dot-indicator {
@@ -403,7 +416,7 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 4px 8px 8px 8px;
+  padding: 2px 8px;
   overflow: hidden;
   background-color: #121315;
   position: relative;
@@ -417,21 +430,22 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0 2px 6px 2px;
+  padding: 0 2px 4px 2px;
   flex-shrink: 0;
   gap: 8px;
+  height: 28px;
 }
 
 .branch-mode-banner {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   background: rgba(139, 94, 60, 0.24);
   border: 1px solid rgba(139, 94, 60, 0.55);
   color: var(--almond);
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   font-weight: 500;
-  padding: 5px 10px;
+  padding: 3px 8px;
   border-radius: 6px;
   white-space: nowrap;
   overflow: hidden;
@@ -509,7 +523,7 @@ body {
 .board-aspect-box {
   width: 100%;
   max-width: 540px;
-  max-height: calc(100% - 32px);
+  max-height: calc(100% - 34px);
   aspect-ratio: 1 / 1;
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.7);
   border-radius: 4px;
@@ -522,7 +536,8 @@ body {
 
 @supports (width: 100cqh) {
   .board-aspect-box {
-    width: min(100%, calc(100cqh - 32px));
+    width: min(100%, 540px, calc(100cqh - 34px));
+    max-height: calc(100cqh - 34px);
   }
 }
 
@@ -668,17 +683,18 @@ body {
   text-overflow: ellipsis;
 }
 
-/* Branch Viewer Bar */
+/* Branch Graph Viewer Bar (Git / Sabaki Tree Graph) */
 .branch-viewer-bar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 4px 12px;
+  padding: 2px 8px;
   background: var(--bg-surface);
   border-top: 1px solid var(--border-color);
   gap: 8px;
-  min-height: 34px;
+  min-height: 36px;
+  max-height: 52px;
   flex-shrink: 0;
+  overflow: hidden;
 }
 
 .branch-viewer-bar.hidden {
@@ -692,13 +708,14 @@ body {
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid var(--border-color);
   color: var(--almond);
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   font-weight: 600;
   padding: 3px 8px;
   border-radius: 4px;
   cursor: pointer;
   transition: all 0.15s ease;
   flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .btn-return-mainline:hover {
@@ -711,89 +728,63 @@ body {
   display: none !important;
 }
 
-.branch-nav-center {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+.branch-graph-scroll-wrap {
   flex: 1;
   overflow-x: auto;
+  overflow-y: hidden;
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
-  padding: 2px 0;
+  display: flex;
+  align-items: center;
+  height: 100%;
 }
 
-.branch-nav-center::-webkit-scrollbar {
+.branch-graph-scroll-wrap::-webkit-scrollbar {
   display: none;
 }
 
-/* Minimal move dots stepper */
-.branch-dots-container {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+.branch-graph-svg {
+  display: block;
+  overflow: visible;
 }
 
-.branch-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.25);
-  border: 1px solid rgba(255, 255, 255, 0.18);
+.branch-graph-edge {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.2);
+  stroke-width: 1.8px;
+  stroke-linecap: round;
+  transition: stroke 0.15s ease;
+}
+
+.branch-graph-edge.active {
+  stroke: var(--kiwi-green);
+  stroke-width: 2.2px;
+}
+
+.branch-graph-node {
   cursor: pointer;
-  padding: 0;
-  transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+  transition: transform 0.1s ease, filter 0.12s ease;
   touch-action: manipulation;
 }
 
-.branch-dot:hover {
-  background: rgba(255, 255, 255, 0.55);
-  transform: scale(1.25);
+.branch-graph-node:hover {
+  transform: scale(1.3);
+  filter: brightness(1.25);
 }
 
-.branch-dot.active {
-  background: var(--kiwi-green);
-  border-color: #fff;
-  box-shadow: 0 0 6px rgba(136, 193, 63, 0.85);
-  transform: scale(1.35);
+.branch-graph-node.current {
+  filter: drop-shadow(0 0 4px var(--kiwi-green));
 }
 
-/* Branch Fork Pills */
-.branch-fork-pills {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+.branch-graph-active-ring {
+  pointer-events: none;
+  animation: activeRingPulse 2s infinite ease-in-out;
 }
 
-.branch-fork-pill {
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid var(--border-color);
-  color: var(--text-main);
-  font-size: 0.72rem;
-  font-weight: 600;
-  padding: 2px 8px;
-  border-radius: 12px;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  white-space: nowrap;
-}
-
-.branch-fork-pill:hover,
-.branch-fork-pill.active {
-  background: rgba(136, 193, 63, 0.22);
-  border-color: var(--kiwi-green);
-  color: #d9f99d;
-}
-
-.branch-label-badge {
-  font-size: 0.7rem;
-  font-weight: 700;
-  color: var(--kiwi-green);
-  background: rgba(136, 193, 63, 0.14);
-  border: 1px solid rgba(136, 193, 63, 0.35);
-  padding: 2px 7px;
-  border-radius: 4px;
-  white-space: nowrap;
-  flex-shrink: 0;
+@keyframes activeRingPulse {
+  0% { transform: scale(1); opacity: 0.9; }
+  50% { transform: scale(1.18); opacity: 0.5; }
+  100% { transform: scale(1); opacity: 0.9; }
 }
 
 .branch-letter-marker {
@@ -807,7 +798,7 @@ body {
 
 /* Comment Bar */
 .comment-bar {
-  padding: 4px 12px;
+  padding: 3px 10px;
   background: var(--bg-surface);
   border-top: 1px solid var(--border-color);
   flex-shrink: 0;
@@ -815,12 +806,12 @@ body {
 
 .comment-bar input {
   width: 100%;
-  padding: 6px 10px;
+  padding: 5px 8px;
   background: rgba(0, 0, 0, 0.35);
   border: 1px solid var(--border-color);
   border-radius: 6px;
   color: var(--text-main);
-  font-size: 0.85rem;
+  font-size: 0.82rem;
   outline: none;
 }
 
@@ -831,13 +822,13 @@ body {
 
 /* Bottom Controls */
 .bottom-controls {
-  padding: 6px 12px 12px 12px;
+  padding: 4px 10px 8px 10px;
   background: var(--bg-surface);
   border-top: 1px solid var(--border-color);
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
 }
 
 /* Move Scrubber Slider */
@@ -969,13 +960,13 @@ body {
   color: var(--text-main);
   border: 1px solid var(--border-color);
   border-radius: 8px;
-  height: 48px;
-  font-size: 1rem;
+  height: 44px;
+  font-size: 0.96rem;
   font-weight: 600;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 5px;
   cursor: pointer;
   touch-action: manipulation;
   transition: background 0.12s, border-color 0.12s, transform 0.05s;
@@ -1039,7 +1030,7 @@ body {
 .quick-toggles {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
-  gap: 6px;
+  gap: 5px;
 }
 
 .toggle-btn {
@@ -1047,8 +1038,8 @@ body {
   border: 1px solid var(--border-color);
   border-radius: 6px;
   color: var(--almond);
-  font-size: 0.75rem;
-  padding: 6px 4px;
+  font-size: 0.72rem;
+  padding: 5px 3px;
   text-align: center;
   cursor: pointer;
   white-space: nowrap;

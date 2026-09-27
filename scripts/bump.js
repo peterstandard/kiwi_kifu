@@ -77,6 +77,10 @@ export function syncFiles(newVersion) {
     /(<link rel="stylesheet" href="style\.css\?v=)[^"]*(")/,
     `$1${newVersion}$2`
   );
+  indexHtml = indexHtml.replace(
+    /(<script type="module" src="js\/main\.js\?v=)[^"]*(")/,
+    `$1${newVersion}$2`
+  );
   fs.writeFileSync(indexPath, indexHtml, 'utf8');
 
   // 3. sw.js

@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=1.4.9">
+  <link rel="stylesheet" href="style.css?v=1.5.0">
   <link rel="icon" href="kiwi_kifu_square.png">
   <link rel="apple-touch-icon" href="kiwi_kifu_square.png">
 </head>
@@ -20,7 +20,7 @@
     <header class="top-nav">
       <div class="brand">
         <img src="kiwi_kifu_stones.png" alt="Kiwi Kifu" class="logo-img">
-        <h1 class="logo-title"><span class="brand-kiwi">kiwi</span> <span class="brand-kifu">kifu</span> <span class="brand-version">v1.4.9</span></h1>
+        <h1 class="logo-title"><span class="brand-kiwi">kiwi</span> <span class="brand-kifu">kifu</span> <span class="brand-version">v1.5.0</span></h1>
       </div>
       <div class="game-meta-badge" id="game-meta-badge" title="Click to edit game info">
         <span id="badge-black-name">Black</span> vs <span id="badge-white-name">White</span>
@@ -60,6 +60,11 @@
         <span class="menu-icon" id="menu-sound-icon">🔊</span>
         <span class="menu-text">Stone Sound</span>
         <span class="menu-badge" id="menu-sound-status">ON</span>
+      </div>
+      <div class="menu-item" id="menu-item-mode">
+        <span class="menu-icon" id="menu-mode-icon">🔍</span>
+        <span class="menu-text" id="menu-mode-text">Review Mode</span>
+        <span class="menu-badge" id="menu-mode-badge">OFF</span>
       </div>
       <div class="menu-divider"></div>
       <div class="menu-item" id="menu-item-info">
@@ -109,9 +114,9 @@
     <!-- Board Area -->
     <main class="board-container" id="board-container">
       <div class="board-top-bar">
-        <div class="branch-mode-banner" id="branch-mode-banner" title="Single branch mode: navigating back and playing will overwrite subsequent moves">
+        <div class="branch-mode-banner" id="branch-mode-banner" role="button" tabindex="0" title="Click to toggle between Recording Mode and Review Mode">
           <span class="branch-mode-dot" id="branch-mode-dot">●</span>
-          <span class="branch-mode-text" id="branch-mode-text">Single branch mode &mdash; overwrites moves</span>
+          <span class="branch-mode-text" id="branch-mode-text">Recording mode &mdash; single branch, overwrites moves</span>
         </div>
         <div class="zoom-controls-group" id="zoom-controls">
           <button id="btn-zoom-in" class="zoom-mini-btn" title="Zoom in" aria-label="Zoom in">+</button>
@@ -126,6 +131,11 @@
               <stop offset="0%" stop-color="#e8be78" />
               <stop offset="50%" stop-color="#dfa964" />
               <stop offset="100%" stop-color="#d39b4f" />
+            </linearGradient>
+            <linearGradient id="wood-grad-review" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#ded7cb" />
+              <stop offset="50%" stop-color="#d1c7b7" />
+              <stop offset="100%" stop-color="#c5b7a5" />
             </linearGradient>
             <radialGradient id="black-grad" cx="35%" cy="30%" r="65%">
               <stop offset="0%" stop-color="#5a5a5a" />
@@ -221,6 +231,21 @@
         <button id="btn-cancel-scoring" class="btn btn-secondary btn-sm" title="Exit scoring mode without saving result">Exit</button>
         <button id="btn-accept-score" class="btn btn-primary btn-sm" title="Record this final score">Accept Result</button>
       </div>
+    </div>
+
+    <!-- Branch Viewer Bar (Visible when in a branch or at a fork) -->
+    <div class="branch-viewer-bar hidden" id="branch-viewer-bar">
+      <button id="btn-return-mainline" class="btn-return-mainline hidden" title="Return to Main Line">
+        <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
+          <polygon points="17,5 6,12 17,19" />
+        </svg>
+        <span>Main Line</span>
+      </button>
+      <div class="branch-nav-center">
+        <div class="branch-dots-container" id="branch-dots-container"></div>
+        <div class="branch-fork-pills" id="branch-fork-pills"></div>
+      </div>
+      <span class="branch-label-badge" id="branch-label-badge">Branch B</span>
     </div>
 
     <!-- Comment Bar -->
@@ -469,6 +494,52 @@
             ⚪ PNG (Unnumbered)
           </button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Confirm Switch to Recording Mode Modal -->
+  <div id="modal-confirm-recording-mode" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="modal-rec-title">
+    <div class="modal-dialog modal-dialog-sm">
+      <div class="modal-header">
+        <h2 id="modal-rec-title" class="modal-title">Switch to Recording Mode?</h2>
+        <button class="modal-close" data-close="modal-confirm-recording-mode" aria-label="Close modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p style="margin-bottom: 8px;">This game contains variation branches.</p>
+        <p style="font-size: 0.85rem; color: var(--text-muted); line-height: 1.45;">
+          In <strong>Recording Mode</strong>, navigating back and playing a move will overwrite and discard subsequent moves on this branch. Variations will not be created.
+        </p>
+      </div>
+      <div class="modal-footer">
+        <button id="btn-cancel-recording-switch" class="btn btn-secondary" data-close="modal-confirm-recording-mode">Stay in Review</button>
+        <button id="btn-confirm-recording-switch" class="btn btn-primary">Switch to Recording</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Branch Node Actions Modal -->
+  <div id="modal-branch-node-actions" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="modal-branch-action-title">
+    <div class="modal-dialog modal-dialog-sm">
+      <div class="modal-header">
+        <h2 id="modal-branch-action-title" class="modal-title">Branch Move Options</h2>
+        <button class="modal-close" data-close="modal-branch-node-actions" aria-label="Close modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p id="branch-action-desc" style="font-size: 0.86rem; margin-bottom: 14px; color: var(--text-muted);">
+          Manage this branch variation.
+        </p>
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <button id="btn-promote-branch" class="btn btn-primary" style="justify-content: center;">
+            ⭐ Promote Branch to Main Line
+          </button>
+          <button id="btn-delete-branch-node" class="btn btn-secondary" style="justify-content: center; color: var(--danger); border-color: rgba(239, 68, 68, 0.4);">
+            🗑️ Delete Move &amp; Forward
+          </button>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-close="modal-branch-node-actions">Cancel</button>
       </div>
     </div>
   </div>

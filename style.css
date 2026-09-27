@@ -27,8 +27,13 @@
 
   /* Board Kaya Wood */
   --wood-bg: #dfa964;
+  --wood-bg-review: #d1c7b7;
   --wood-border: #8B5E3C;
   --grid-line: #45311c;
+
+  /* Review Mode Theme */
+  --review-accent: var(--kiwi-green);
+  --review-accent-glow: rgba(136, 193, 63, 0.25);
 }
 
 * {
@@ -435,6 +440,12 @@ body {
   -webkit-user-select: none;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
   min-width: 0;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.branch-mode-banner:hover {
+  filter: brightness(1.15);
 }
 
 .branch-mode-dot {
@@ -442,12 +453,46 @@ body {
   font-size: 0.65rem;
   line-height: 1;
   flex-shrink: 0;
+  transition: color 0.15s ease;
 }
 
 .branch-mode-text {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* Review Mode Banner & Frame */
+.review-mode .branch-mode-banner {
+  background: rgba(136, 193, 63, 0.18);
+  border-color: rgba(136, 193, 63, 0.65);
+  color: #d9f99d;
+  box-shadow: 0 0 12px rgba(136, 193, 63, 0.2);
+}
+
+.review-mode .branch-mode-banner .branch-mode-dot {
+  color: var(--kiwi-green);
+}
+
+.review-mode .board-aspect-box {
+  border-color: var(--review-accent);
+  box-shadow: 0 0 18px var(--review-accent-glow), 0 8px 30px rgba(0, 0, 0, 0.7);
+}
+
+/* Recording Mode Banner & Frame */
+.recording-mode .branch-mode-banner {
+  background: rgba(139, 94, 60, 0.24);
+  border-color: rgba(139, 94, 60, 0.55);
+  color: var(--almond);
+}
+
+.recording-mode .branch-mode-banner .branch-mode-dot {
+  color: #dfa964;
+}
+
+.recording-mode .board-aspect-box {
+  border-color: var(--wood-border);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.7);
 }
 
 .branch-mode-banner.edit-mode-active {
@@ -472,6 +517,7 @@ body {
   touch-action: none;
   border: 2px solid var(--wood-border);
   position: relative;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 @supports (width: 100cqh) {
@@ -620,6 +666,143 @@ body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* Branch Viewer Bar */
+.branch-viewer-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 12px;
+  background: var(--bg-surface);
+  border-top: 1px solid var(--border-color);
+  gap: 8px;
+  min-height: 34px;
+  flex-shrink: 0;
+}
+
+.branch-viewer-bar.hidden {
+  display: none !important;
+}
+
+.btn-return-mainline {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border-color);
+  color: var(--almond);
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.btn-return-mainline:hover {
+  background: rgba(136, 193, 63, 0.2);
+  border-color: var(--kiwi-green);
+  color: #fff;
+}
+
+.btn-return-mainline.hidden {
+  display: none !important;
+}
+
+.branch-nav-center {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  padding: 2px 0;
+}
+
+.branch-nav-center::-webkit-scrollbar {
+  display: none;
+}
+
+/* Minimal move dots stepper */
+.branch-dots-container {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.branch-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  cursor: pointer;
+  padding: 0;
+  transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+  touch-action: manipulation;
+}
+
+.branch-dot:hover {
+  background: rgba(255, 255, 255, 0.55);
+  transform: scale(1.25);
+}
+
+.branch-dot.active {
+  background: var(--kiwi-green);
+  border-color: #fff;
+  box-shadow: 0 0 6px rgba(136, 193, 63, 0.85);
+  transform: scale(1.35);
+}
+
+/* Branch Fork Pills */
+.branch-fork-pills {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.branch-fork-pill {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.branch-fork-pill:hover,
+.branch-fork-pill.active {
+  background: rgba(136, 193, 63, 0.22);
+  border-color: var(--kiwi-green);
+  color: #d9f99d;
+}
+
+.branch-label-badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--kiwi-green);
+  background: rgba(136, 193, 63, 0.14);
+  border: 1px solid rgba(136, 193, 63, 0.35);
+  padding: 2px 7px;
+  border-radius: 4px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.branch-letter-marker {
+  transition: transform 0.12s ease;
+}
+
+.branch-letter-marker:hover circle {
+  stroke: #ffffff;
+  stroke-width: 3px;
 }
 
 /* Comment Bar */

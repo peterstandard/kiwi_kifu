@@ -775,4 +775,168 @@ await test('Move Scrubber: disabled during edit-move mode or empty game', () => 
   assert.strictEqual(isSliderDisabled, false, 'Slider is re-enabled when exiting edit-move mode');
 });
 
+await test('Review mode: creates variations when playing at past move', () => {
+  const game = new GoGame(19);
+  game.playMove(3, 3);   // Move 1
+  game.playMove(15, 15); // Move 2
+  game.playMove(15, 3);  // Move 3 (Main line)
+  game.playMove(3, 15);  // Move 4 (Main line)
+  assert.strictEqual(game.history.length, 5);
+
+  // Switch to Review Mode
+  game.setMode('review');
+  game.jumpToStep(2); // At Move 2 (15, 15)
+
+  // Play an alternative move at (16, 16)
+  const res = game.playMove(16, 16);
+  assert.strictEqual(res.success, true);
+  assert.strictEqual(game.hasBranches(), true, 'Game now has branches');
+
+  // Verify branch info
+  const branchInfo = game.getCurrentBranchInfo();
+  assert.ok(branchInfo !== null, 'Currently inside a branch');
+  assert.strictEqual(branchInfo.branchLetter, 'B', 'Branch letter is B');
+  assert.strictEqual(branchInfo.totalMoves, 1);
+  assert.strictEqual(game.currentStep, 3);
+
+  // Return to main line
+  game.switchToMainLine();
+  assert.strictEqual(game.getCurrentBranchInfo(), null, 'Now back on main line');
+  assert.strictEqual(game.history[3].coord.x, 15, 'Original Move 3 intact');
+  assert.strictEqual(game.history[4].coord.x, 3, 'Original Move 4 intact');
+});
+
+await test('Recording mode: single-branch truncates subsequent moves', () => {
+  const game = new GoGame(19);
+  game.playMove(3, 3);   // Move 1
+  game.playMove(15, 15); // Move 2
+  game.playMove(15, 3);  // Move 3
+  game.playMove(3, 15);  // Move 4
+  assert.strictEqual(game.history.length, 5);
+
+  // In Recording Mode
+  game.setMode('recording');
+  game.jumpToStep(2);
+
+  // Playing a move in recording mode should overwrite subsequent moves
+  const res = game.playMove(16, 16);
+  assert.strictEqual(res.success, true);
+  assert.strictEqual(game.hasBranches(), false, 'Single branch mode has no branches');
+  assert.strictEqual(game.history.length, 4, 'History truncated to step 0..3');
+  assert.strictEqual(game.history[3].coord.x, 16);
+});
+
+await test('Branch navigation: switching branches and returning to main line', () => {
+  const game = new GoGame(19);
+  game.setMode('review');
+  game.playMove(3, 3);   // 1
+  game.playMove(15, 15); // 2
+  game.playMove(15, 3);  // 3: Branch A
+
+  // Rewind to 2 and create Branch B
+  game.jumpToStep(2);
+  game.playMove(3, 15);  // 3: Branch B
+
+  // Rewind to 2 and check fork branches
+  game.jumpToStep(2);
+  const branches = game.getBranchesAtCurrent();
+  assert.strictEqual(branches.length, 2, 'Two branches at move 2');
+  assert.strictEqual(branches[0].letter, 'A');
+  assert.strictEqual(branches[1].letter, 'B');
+
+  // Step into branch B
+  const switchedB = game.switchToBranch(1);
+  assert.strictEqual(switchedB, true);
+  assert.strictEqual(game.history[3].coord.x, 3);
+
+  // Return to main line
+  game.switchToMainLine();
+  assert.strictEqual(game.history[3].coord.x, 15);
+});
+
+await test('Branch management: promoting branch to main line and deleting branch node', () => {
+  const game = new GoGame(19);
+  game.setMode('review');
+  game.playMove(3, 3);   // 1
+  game.playMove(15, 15); // 2
+  game.playMove(15, 3);  // 3: Branch A (originally main)
+
+  game.jumpToStep(2);
+  game.playMove(9, 9);   // 3: Branch B
+  game.playMove(10, 10); // 4: Branch B
+
+  const branchInfo = game.getCurrentBranchInfo();
+  assert.ok(branchInfo);
+  assert.strictEqual(branchInfo.branchNodes.length, 2);
+
+  // Promote Branch B to Main Line
+  const promoted = game.promoteBranch(branchInfo.branchFirstNode);
+  assert.strictEqual(promoted, true);
+  assert.strictEqual(game.getCurrentBranchInfo(), null, 'Branch B is now Main Line');
+  assert.strictEqual(game.history[3].coord.x, 9, 'Main line move 3 is now (9,9)');
+  assert.strictEqual(game.history[4].coord.x, 10, 'Main line move 4 is now (10,10)');
+
+  // Now jump to Move 2 where old branch A is at index 1
+  game.jumpToStep(2);
+  const forkBranches = game.getBranchesAtCurrent();
+  assert.strictEqual(forkBranches.length, 2);
+  // Delete old branch A
+  const deleted = game.deleteBranchNode(forkBranches[1].node);
+  assert.strictEqual(deleted, true);
+  assert.strictEqual(game.hasBranches(), false, 'Branch was deleted cleanly');
+});
+
+await test('SGF Tree: recursive export and import with multiple branches round-trip', () => {
+  const game = new GoGame(19);
+  game.info.blackName = 'Honinbo';
+  game.info.whiteName = 'Shusaku';
+  game.setMode('review');
+
+  game.playMove(3, 3);   // 1
+  game.playMove(15, 15); // 2
+  game.playMove(15, 3);  // 3 (Main line)
+  game.setComment('Main line comment');
+
+  game.jumpToStep(2);
+  game.playMove(3, 15);  // 3 (Branch B)
+  game.setComment('Branch B variation');
+
+  const sgf = game.toSgf();
+  assert.ok(sgf.includes('(;'), 'SGF contains branch opening parenthesis');
+  assert.ok(sgf.includes('Main line comment'));
+  assert.ok(sgf.includes('Branch B variation'));
+
+  // Reload SGF
+  const reloaded = new GoGame(19);
+  const success = reloaded.loadSgf(sgf);
+  assert.strictEqual(success, true, 'SGF parsed successfully');
+  assert.strictEqual(reloaded.mode, 'review', 'Defaults to review mode on SGF load');
+  assert.strictEqual(reloaded.hasBranches(), true, 'Reloaded game preserved variations');
+  assert.strictEqual(reloaded.info.blackName, 'Honinbo');
+  assert.strictEqual(reloaded.info.whiteName, 'Shusaku');
+});
+
+await test('BoardRenderer: renders variation badges (A, B...) in review mode at fork node', () => {
+  const stonesGroup = { innerHTML: '' };
+  const markersGroup = { innerHTML: '' };
+  const renderer = new BoardRenderer({ stonesGroup, markersGroup });
+
+  const game = new GoGame(19);
+  game.setMode('review');
+  game.playMove(3, 3);   // 1
+  game.playMove(15, 15); // 2
+  game.playMove(15, 3);  // 3: Branch A
+
+  game.jumpToStep(2);
+  game.playMove(3, 15);  // 3: Branch B
+
+  // Jump back to fork move 2
+  game.jumpToStep(2);
+  renderer.render(game);
+
+  assert.ok(markersGroup.innerHTML.includes('class="branch-letter-marker"'), 'Markers contain branch letter marker');
+  assert.ok(markersGroup.innerHTML.includes('>A<'), 'Contains variation badge A');
+  assert.ok(markersGroup.innerHTML.includes('>B<'), 'Contains variation badge B');
+});
+
 console.log(`\nAll ${passed} invariant tests passed! 🎯\n`);

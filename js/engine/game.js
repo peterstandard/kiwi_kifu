@@ -1,5 +1,6 @@
 /**
- * SimpleKifu - Core Go Rules Engine & Game State
+ * Kiwi Kifu - Core Go Rules Engine & Game State
+ * Supports linear recording mode and full branching review mode.
  */
 
 import { HOSHI_POINTS } from './constants.js';
@@ -9,19 +10,20 @@ import {
   coordToReadable,
   escapeSgf,
   unescapeSgf,
+  parseSgf,
   serializeGameToSgf
 } from './sgf.js';
 
 export class GoGame {
   constructor(size = 19) {
     this.size = size;
+    this.mode = 'recording'; // 'recording' | 'review'
+    this.nodeIdCounter = 0;
     this.reset();
   }
 
   reset() {
     this.board = Array.from({ length: this.size }, () => Array(this.size).fill(0));
-    this.history = [];
-    this.currentStep = 0;
     this.captures = { 1: 0, 2: 0 }; // 1 = Black, 2 = White
     this.turn = 1; // 1 = Black, 2 = White
     this.handicap = 0;
@@ -38,8 +40,9 @@ export class GoGame {
       rules: 'Japanese'
     };
 
-    // Save initial empty state
-    this.history.push({
+    // Root node (step 0, initial board)
+    this.rootNode = {
+      id: ++this.nodeIdCounter,
       step: 0,
       player: 0,
       coord: null,
@@ -47,12 +50,18 @@ export class GoGame {
       comment: '',
       board: this.cloneBoard(),
       caps: { 1: 0, 2: 0 },
-      hash: this.getBoardHash()
-    });
+      hash: this.getBoardHash(),
+      parent: null,
+      children: []
+    };
+
+    this.currentNode = this.rootNode;
+    this.history = [this.rootNode];
+    this.currentStep = 0;
   }
 
-  cloneBoard() {
-    return this.board.map(row => [...row]);
+  cloneBoard(b = this.board) {
+    return b.map(row => [...row]);
   }
 
   getBoardHash(b = this.board) {
@@ -73,6 +82,12 @@ export class GoGame {
 
   escapeSgf(str) {
     return escapeSgf(str);
+  }
+
+  setMode(mode) {
+    if (mode === 'recording' || mode === 'review') {
+      this.mode = mode;
+    }
   }
 
   applyHandicap(numStones) {
@@ -110,8 +125,8 @@ export class GoGame {
     for (const pt of points) {
       this.board[pt.y][pt.x] = 1; // Black
     }
-    this.history[0].board = this.cloneBoard();
-    this.history[0].hash = this.getBoardHash();
+    this.rootNode.board = this.cloneBoard();
+    this.rootNode.hash = this.getBoardHash();
     this.turn = 2; // White plays first in handicap game
   }
 
@@ -154,43 +169,99 @@ export class GoGame {
     return { stones, liberties };
   }
 
-  playMove(x, y) {
-    // If not at latest step, truncate forward history
-    if (this.currentStep < this.history.length - 1) {
-      this.history = this.history.slice(0, this.currentStep + 1);
+  /**
+   * Rebuilds this.history so that it traces from this.rootNode down to targetNode,
+   * and then down to the leaf of the active branch following children[0].
+   */
+  rebuildHistory(targetNode = this.currentNode) {
+    if (!targetNode) return;
+
+    // 1. Trace ancestors from targetNode up to root
+    const ancestors = [];
+    let cur = targetNode;
+    while (cur) {
+      ancestors.unshift(cur);
+      cur = cur.parent;
     }
 
+    // 2. Trace descendants from targetNode down following primary child (children[0])
+    const descendants = [];
+    let child = targetNode.children && targetNode.children.length > 0 ? targetNode.children[0] : null;
+    while (child) {
+      descendants.push(child);
+      child = child.children && child.children.length > 0 ? child.children[0] : null;
+    }
+
+    this.history = [...ancestors, ...descendants];
+    for (let i = 0; i < this.history.length; i++) {
+      this.history[i].step = i;
+    }
+
+    this.currentNode = targetNode;
+    this.currentStep = targetNode.step;
+    this.board = targetNode.board.map(r => [...r]);
+    this.captures = { ...targetNode.caps };
+
+    if (this.currentStep === 0) {
+      this.turn = this.handicap >= 2 ? 2 : 1;
+    } else {
+      this.turn = 3 - targetNode.player;
+    }
+  }
+
+  playMove(x, y) {
+    const parentNode = this.history[this.currentStep] || this.currentNode;
     const player = this.turn;
     const opponent = 3 - player;
+
+    // In Review Mode: check if an identical move already exists as a child of parentNode
+    if (this.mode === 'review' && parentNode && parentNode.children) {
+      const existingChild = parentNode.children.find(c => {
+        if (x === null || y === null) return c.coord === null;
+        return c.coord && c.coord.x === x && c.coord.y === y;
+      });
+      if (existingChild) {
+        this.rebuildHistory(existingChild);
+        return { success: true, move: existingChild, isBranch: false };
+      }
+    }
 
     // Handle PASS
     if (x === null || y === null) {
       const newStep = {
-        step: this.history.length,
+        id: ++this.nodeIdCounter,
+        step: parentNode.step + 1,
         player,
         coord: null,
         captures: [],
         comment: '',
-        board: this.cloneBoard(),
-        caps: { ...this.captures },
-        hash: this.getBoardHash()
+        board: this.cloneBoard(parentNode.board),
+        caps: { ...parentNode.caps },
+        hash: parentNode.hash,
+        parent: parentNode,
+        children: []
       };
-      this.history.push(newStep);
-      this.currentStep = this.history.length - 1;
-      this.turn = opponent;
-      return { success: true, isPass: true };
+
+      if (this.mode === 'recording') {
+        parentNode.children = [newStep];
+      } else {
+        parentNode.children.push(newStep);
+      }
+
+      this.rebuildHistory(newStep);
+      return { success: true, isPass: true, move: newStep };
     }
 
     // Check bounds & occupancy
     if (x < 0 || x >= this.size || y < 0 || y >= this.size) {
       return { success: false, error: 'Out of bounds' };
     }
-    if (this.board[y][x] !== 0) {
+    if (parentNode.board[y][x] !== 0) {
       return { success: false, error: 'Point already occupied' };
     }
 
     // Speculatively place stone
-    const testBoard = this.cloneBoard();
+    const testBoard = this.cloneBoard(parentNode.board);
     testBoard[y][x] = player;
 
     // Check opponent captures
@@ -213,34 +284,40 @@ export class GoGame {
       return { success: false, error: 'Suicide move is illegal' };
     }
 
-    // Check Ko rule
+    // Check Ko rule (against board state before parent move)
     const newHash = this.getBoardHash(testBoard);
-    if (this.currentStep >= 1) {
-      const prevHash = this.history[this.currentStep - 1].hash;
+    if (parentNode.parent) {
+      const prevHash = parentNode.parent.hash;
       if (newHash === prevHash && capturedStones.length === 1) {
         return { success: false, error: 'Ko rule: cannot immediately recapture' };
       }
     }
 
     // Move is valid! Commit state
-    this.board = testBoard;
-    this.captures[player] += capturedStones.length;
+    const newCaps = { ...parentNode.caps };
+    newCaps[player] += capturedStones.length;
 
     const moveNode = {
-      step: this.history.length,
+      id: ++this.nodeIdCounter,
+      step: parentNode.step + 1,
       player,
       coord: { x, y },
       captures: capturedStones,
       comment: '',
-      board: this.cloneBoard(),
-      caps: { ...this.captures },
-      hash: newHash
+      board: testBoard,
+      caps: newCaps,
+      hash: newHash,
+      parent: parentNode,
+      children: []
     };
 
-    this.history.push(moveNode);
-    this.currentStep = this.history.length - 1;
-    this.turn = opponent;
+    if (this.mode === 'recording') {
+      parentNode.children = [moveNode];
+    } else {
+      parentNode.children.push(moveNode);
+    }
 
+    this.rebuildHistory(moveNode);
     return { success: true, move: moveNode };
   }
 
@@ -248,6 +325,7 @@ export class GoGame {
     if (stepIndex < 0 || stepIndex >= this.history.length) return false;
     this.currentStep = stepIndex;
     const node = this.history[stepIndex];
+    this.currentNode = node;
     this.board = node.board.map(r => [...r]);
     this.captures = { ...node.caps };
 
@@ -274,8 +352,9 @@ export class GoGame {
   }
 
   setComment(commentText) {
-    if (this.history[this.currentStep]) {
-      this.history[this.currentStep].comment = commentText;
+    const node = this.history[this.currentStep];
+    if (node) {
+      node.comment = commentText;
     }
   }
 
@@ -283,20 +362,191 @@ export class GoGame {
     return this.history[this.currentStep]?.comment || '';
   }
 
+  /**
+   * Returns child variation information at the currently viewed node.
+   * e.g. [{ index: 0, letter: 'A', coord: {x,y}, player: 1, node }]
+   */
+  getBranchesAtCurrent() {
+    const node = this.currentNode;
+    if (!node || !node.children || node.children.length === 0) return [];
+
+    return node.children.map((child, index) => {
+      const letter = String.fromCharCode(65 + index); // 'A', 'B', 'C'...
+      return {
+        index,
+        letter,
+        coord: child.coord,
+        player: child.player,
+        node: child
+      };
+    });
+  }
+
+  /**
+   * Returns branch info if the user is currently viewing inside a non-main-line variation.
+   */
+  getCurrentBranchInfo() {
+    let cur = this.currentNode;
+    let forkNode = null;
+    let branchFirstNode = null;
+
+    // Walk up ancestors
+    while (cur && cur.parent) {
+      const parent = cur.parent;
+      const childIndex = parent.children.indexOf(cur);
+      if (childIndex > 0) {
+        forkNode = parent;
+        branchFirstNode = cur;
+      }
+      cur = parent;
+    }
+
+    if (!forkNode || !branchFirstNode) {
+      return null; // On main line
+    }
+
+    // Determine branch letter (A=0, B=1, C=2...)
+    const forkIndex = forkNode.children.indexOf(branchFirstNode);
+    const branchLetter = String.fromCharCode(65 + Math.max(0, forkIndex));
+
+    // Collect all nodes in this branch line
+    const branchNodes = [];
+    let bCur = branchFirstNode;
+    while (bCur) {
+      branchNodes.push(bCur);
+      bCur = bCur.children && bCur.children.length > 0 ? bCur.children[0] : null;
+    }
+
+    const currentBranchIndex = branchNodes.indexOf(this.currentNode);
+
+    return {
+      forkNode,
+      branchFirstNode,
+      branchLetter,
+      branchNodes,
+      currentBranchIndex: currentBranchIndex !== -1 ? currentBranchIndex : 0,
+      totalMoves: branchNodes.length
+    };
+  }
+
+  switchToMainLine() {
+    const mainNodes = [];
+    let cur = this.rootNode;
+    while (cur) {
+      mainNodes.push(cur);
+      cur = cur.children && cur.children.length > 0 ? cur.children[0] : null;
+    }
+    this.history = mainNodes;
+    for (let i = 0; i < this.history.length; i++) {
+      this.history[i].step = i;
+    }
+    const targetStep = Math.min(this.currentStep, this.history.length - 1);
+    this.jumpToStep(targetStep);
+  }
+
+  switchToBranch(childIndex) {
+    const parentNode = this.currentNode;
+    if (!parentNode || !parentNode.children || !parentNode.children[childIndex]) return false;
+    const targetChild = parentNode.children[childIndex];
+    this.rebuildHistory(targetChild);
+    return true;
+  }
+
+  promoteBranch(branchFirstNode) {
+    if (!branchFirstNode || !branchFirstNode.parent) return false;
+    let cur = branchFirstNode;
+    while (cur && cur.parent) {
+      const parent = cur.parent;
+      const idx = parent.children.indexOf(cur);
+      if (idx > 0) {
+        parent.children.splice(idx, 1);
+        parent.children.unshift(cur);
+      }
+      cur = parent;
+    }
+    this.rebuildHistory(this.currentNode);
+    return true;
+  }
+
+  deleteBranchNode(node) {
+    if (!node || !node.parent) return false;
+    const parent = node.parent;
+    const idx = parent.children.indexOf(node);
+    if (idx !== -1) {
+      parent.children.splice(idx, 1);
+    }
+    this.rebuildHistory(parent);
+    return true;
+  }
+
+  hasBranches() {
+    function checkNode(node) {
+      if (!node || !node.children) return false;
+      if (node.children.length > 1) return true;
+      for (const child of node.children) {
+        if (checkNode(child)) return true;
+      }
+      return false;
+    }
+    return checkNode(this.rootNode);
+  }
+
   toSgf() {
     return serializeGameToSgf(this);
+  }
+
+  createNodeFromParent(parentNode, player, coord, comment = '') {
+    const testBoard = this.cloneBoard(parentNode.board);
+    let capturedStones = [];
+    const newCaps = { ...parentNode.caps };
+
+    if (coord && coord.x !== null && coord.y !== null) {
+      const { x, y } = coord;
+      const opponent = 3 - player;
+      testBoard[y][x] = player;
+
+      // captures
+      for (const n of this.getNeighbors(x, y)) {
+        if (testBoard[n.y][n.x] === opponent) {
+          const group = this.getGroup(n.x, n.y, testBoard);
+          if (group.liberties.size === 0) {
+            for (const s of group.stones) {
+              testBoard[s.y][s.x] = 0;
+              capturedStones.push({ ...s, color: opponent });
+            }
+          }
+        }
+      }
+      newCaps[player] += capturedStones.length;
+    }
+
+    const newHash = this.getBoardHash(testBoard);
+
+    return {
+      id: ++this.nodeIdCounter,
+      step: parentNode.step + 1,
+      player,
+      coord,
+      captures: capturedStones,
+      comment: comment || '',
+      board: testBoard,
+      caps: newCaps,
+      hash: newHash,
+      parent: parentNode,
+      children: []
+    };
   }
 
   loadSgf(sgfStr) {
     if (!sgfStr) return false;
 
-    const clean = sgfStr.trim();
-    if (!clean.startsWith('(')) return false;
+    const parsedTree = parseSgf(sgfStr.trim());
+    if (!parsedTree || !parsedTree.sequence || parsedTree.sequence.length === 0) {
+      return false;
+    }
 
-    const getProp = (tag) => {
-      const m = clean.match(new RegExp(`${tag}\\[((?:\\\\.|[^\\\\\\]])*)\\]`, 's'));
-      return m ? unescapeSgf(m[1]) : null;
-    };
+    const rootProps = parsedTree.sequence[0];
+    const getProp = (tag) => (rootProps[tag] && rootProps[tag][0] ? rootProps[tag][0] : null);
 
     const sz = parseInt(getProp('SZ') || '19', 10);
     this.size = [19, 13, 9].includes(sz) ? sz : 19;
@@ -317,13 +567,11 @@ export class GoGame {
 
     // Handicap
     const ha = parseInt(getProp('HA') || '0', 10);
-    const abMatches = clean.match(/AB(\[[a-z]{2}\])+/g);
-    if (abMatches) {
+    const abVals = rootProps.AB || [];
+    if (abVals.length > 0) {
       const stones = [];
-      const coordRegex = /\[([a-z]{2})\]/g;
-      let m;
-      while ((m = coordRegex.exec(abMatches.join(''))) !== null) {
-        const c = this.sgfToCoord(m[1]);
+      for (const val of abVals) {
+        const c = this.sgfToCoord(val);
         if (c) stones.push(c);
       }
       if (stones.length > 0) {
@@ -332,52 +580,60 @@ export class GoGame {
         for (const pt of stones) {
           this.board[pt.y][pt.x] = 1;
         }
-        this.history[0].board = this.cloneBoard();
-        this.history[0].hash = this.getBoardHash();
+        this.rootNode.board = this.cloneBoard();
+        this.rootNode.hash = this.getBoardHash();
         this.turn = 2;
       }
     } else if (ha >= 2) {
       this.applyHandicap(ha);
     }
 
-    // Parse moves: sequence of ;[BW]\[([a-z]{0,2})\](C\[...\])?
-    const nodeRegex = /;([BW])\[([a-z]{0,2})\](?:C\[((?:\\.|[^\\\]])*)\])?/gs;
-    let match;
-    while ((match = nodeRegex.exec(clean)) !== null) {
-      const colorChar = match[1];
-      const coordStr = match[2];
-      const commentRaw = match[3] || '';
-      const comment = unescapeSgf(commentRaw);
+    // Recursively replay sequence and subtrees into game tree
+    const replayTree = (tree, parentNode, isFirstTree) => {
+      const startIdx = isFirstTree ? 1 : 0;
+      let curParent = parentNode;
 
-      const expectedColor = colorChar === 'B' ? 1 : 2;
-      this.turn = expectedColor;
-
-      if (!coordStr || coordStr.length === 0 || (coordStr === 'tt' && this.size <= 19)) {
-        this.playMove(null, null);
-      } else {
-        const c = this.sgfToCoord(coordStr);
-        if (c) {
-          this.playMove(c.x, c.y);
+      for (let i = startIdx; i < tree.sequence.length; i++) {
+        const props = tree.sequence[i];
+        let player = 0;
+        let coordStr = '';
+        if (props.B) {
+          player = 1;
+          coordStr = props.B[0] || '';
+        } else if (props.W) {
+          player = 2;
+          coordStr = props.W[0] || '';
         } else {
-          this.playMove(null, null);
+          continue;
+        }
+
+        const comment = props.C ? props.C[0] : '';
+        let coord = null;
+        if (coordStr && coordStr !== 'tt') {
+          coord = this.sgfToCoord(coordStr);
+        }
+
+        const childNode = this.createNodeFromParent(curParent, player, coord, comment);
+        curParent.children.push(childNode);
+        curParent = childNode;
+      }
+
+      if (tree.subTrees && tree.subTrees.length > 0) {
+        for (const sub of tree.subTrees) {
+          replayTree(sub, curParent, false);
         }
       }
+    };
 
-      if (comment) {
-        this.setComment(comment);
-      }
-    }
+    replayTree(parsedTree, this.rootNode, true);
 
+    // Default to Review Mode on SGF load
+    this.mode = 'review';
+    this.switchToMainLine();
+    this.jumpToStep(this.history.length - 1);
     return true;
   }
 
-  /**
-   * Finds which move step in history (1..atStep) placed the stone currently residing at (x, y).
-   * Returns:
-   *   - step number (1..N) if placed by a move
-   *   - 0 if it is a handicap stone
-   *   - null if no stone or not found
-   */
   findMoveAtCoord(x, y, atStep = this.currentStep) {
     if (atStep < 0 || atStep >= this.history.length) return null;
     const color = this.board[y] ? this.board[y][x] : 0;
@@ -397,12 +653,6 @@ export class GoGame {
     return null;
   }
 
-  /**
-   * Retroactively adjusts the coordinate of a historical move without truncating
-   * subsequent moves, validating all moves forward to ensure rules integrity.
-   * If any subsequent move becomes illegal or conflicts, the adjustment is rejected
-   * and the original game remains completely untouched.
-   */
   adjustMove(stepIndex, newX, newY) {
     if (stepIndex <= 0 || stepIndex >= this.history.length) {
       return { success: false, error: 'Invalid move step' };
@@ -418,14 +668,12 @@ export class GoGame {
       return { success: false, error: 'Out of bounds' };
     }
 
-    // Sandbox validation using an isolated test game
     const testGame = new GoGame(this.size);
     testGame.info = { ...this.info };
     if (this.handicap >= 2) {
       testGame.applyHandicap(this.handicap);
     }
 
-    // Replay moves prior to the adjusted move
     for (let i = 1; i < stepIndex; i++) {
       const node = this.history[i];
       if (node.coord) {
@@ -439,14 +687,12 @@ export class GoGame {
       testGame.history[i].comment = node.comment || '';
     }
 
-    // Play the adjusted move at stepIndex
     const resAdjusted = testGame.playMove(newX, newY);
     if (!resAdjusted.success) {
       return { success: false, error: `Illegal move at step ${stepIndex}: ${resAdjusted.error}` };
     }
     testGame.history[stepIndex].comment = targetNode.comment || '';
 
-    // Replay subsequent moves
     for (let i = stepIndex + 1; i < this.history.length; i++) {
       const node = this.history[i];
       if (node.coord) {
@@ -465,9 +711,10 @@ export class GoGame {
       testGame.history[i].comment = node.comment || '';
     }
 
-    // Verification successful! Atomically commit the adjusted history
     const prevStep = this.currentStep;
     this.history = testGame.history;
+    this.rootNode = testGame.rootNode;
+    this.currentNode = testGame.currentNode;
     this.board = testGame.board;
     this.captures = testGame.captures;
     this.turn = testGame.turn;
@@ -477,4 +724,3 @@ export class GoGame {
     return { success: true, count: this.history.length - 1 };
   }
 }
-

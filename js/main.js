@@ -132,6 +132,13 @@ export class KiwiKifuUI {
     this.btnCancelEditMove = document.getElementById('btn-cancel-edit-move');
     this.btnConfirmEditMove = document.getElementById('btn-confirm-edit-move');
 
+    // Branch Viewer UI
+    this.branchViewerBar = document.getElementById('branch-viewer-bar');
+    this.btnReturnMainline = document.getElementById('btn-return-mainline');
+    this.branchDotsContainer = document.getElementById('branch-dots-container');
+    this.branchForkPills = document.getElementById('branch-fork-pills');
+    this.branchLabelBadge = document.getElementById('branch-label-badge');
+
     // Zoom Controls
     this.btnZoomIn = document.getElementById('btn-zoom-in');
     this.btnZoomOut = document.getElementById('btn-zoom-out');
@@ -145,6 +152,9 @@ export class KiwiKifuUI {
     this.menuItemShare = document.getElementById('menu-item-share');
     this.menuItemWake = document.getElementById('menu-item-wake');
     this.menuItemSound = document.getElementById('menu-item-sound');
+    this.menuItemMode = document.getElementById('menu-item-mode');
+    this.menuModeText = document.getElementById('menu-mode-text');
+    this.menuModeBadge = document.getElementById('menu-mode-badge');
     this.menuItemInfo = document.getElementById('menu-item-info');
     this.menuItemSaveOverwrite = document.getElementById('menu-item-save-overwrite');
     this.menuItemSaveCopy = document.getElementById('menu-item-save-copy');
@@ -192,6 +202,12 @@ export class KiwiKifuUI {
     this.modalLibrary = document.getElementById('modal-library');
     this.modalShare = document.getElementById('modal-share');
     this.modalNewGame = document.getElementById('modal-new-game');
+    this.modalConfirmRecording = document.getElementById('modal-confirm-recording-mode');
+    this.btnConfirmRecordingSwitch = document.getElementById('btn-confirm-recording-switch');
+    this.modalBranchActions = document.getElementById('modal-branch-node-actions');
+    this.branchActionDesc = document.getElementById('branch-action-desc');
+    this.btnPromoteBranch = document.getElementById('btn-promote-branch');
+    this.btnDeleteBranchNode = document.getElementById('btn-delete-branch-node');
 
     this.qrCodeContainer = document.getElementById('qr-code-container');
     this.inputShareUrl = document.getElementById('input-share-url');
@@ -245,6 +261,9 @@ export class KiwiKifuUI {
         this.pendingMove = null;
         this.hideConfirmBar();
       }
+      if (this.game.getCurrentBranchInfo()) {
+        this.game.switchToMainLine();
+      }
       const targetStep = parseInt(e.target.value, 10);
       if (!isNaN(targetStep) && targetStep >= 0 && targetStep < this.game.history.length) {
         this.game.jumpToStep(targetStep);
@@ -258,11 +277,62 @@ export class KiwiKifuUI {
         this.pendingMove = null;
         this.hideConfirmBar();
       }
+      if (this.game.getCurrentBranchInfo()) {
+        this.game.switchToMainLine();
+      }
       const targetStep = parseInt(e.target.value, 10);
       if (!isNaN(targetStep) && targetStep >= 0 && targetStep < this.game.history.length) {
         this.game.jumpToStep(targetStep);
         this.render();
       }
+    });
+
+    // Mode Banner & Menu Item
+    this.branchModeBanner?.addEventListener('click', () => {
+      if (this.editingMove) return;
+      this.toggleMode();
+    });
+    this.branchModeBanner?.addEventListener('keydown', (e) => {
+      if (this.editingMove) return;
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        this.toggleMode();
+      }
+    });
+    this.menuItemMode?.addEventListener('click', () => {
+      this.closeDropdown();
+      this.toggleMode();
+    });
+
+    // Branch Viewer Actions
+    this.btnReturnMainline?.addEventListener('click', () => {
+      this.game.switchToMainLine();
+      this.render();
+    });
+
+    this.btnConfirmRecordingSwitch?.addEventListener('click', () => {
+      this.modalConfirmRecording?.classList.add('hidden');
+      this.setMode('recording');
+    });
+
+    this.btnPromoteBranch?.addEventListener('click', () => {
+      if (!this.selectedBranchNode) return;
+      this.modalBranchActions?.classList.add('hidden');
+      this.game.promoteBranch(this.selectedBranchNode);
+      this.selectedBranchNode = null;
+      this.saveCurrentGame();
+      this.render();
+      this.showToast('Promoted branch to Main Line ⭐');
+    });
+
+    this.btnDeleteBranchNode?.addEventListener('click', () => {
+      if (!this.selectedBranchNode) return;
+      this.modalBranchActions?.classList.add('hidden');
+      this.game.deleteBranchNode(this.selectedBranchNode);
+      this.selectedBranchNode = null;
+      this.saveCurrentGame();
+      this.render();
+      this.showToast('Deleted branch moves 🗑️');
     });
 
     // Comments
@@ -408,6 +478,7 @@ export class KiwiKifuUI {
       this.archiveCurrentGame();
       this.activeGameId = null;
       this.game.reset();
+      this.game.setMode('recording');
       this.gestures.resetZoom();
       this.saveCurrentGame();
       this.render();
@@ -420,6 +491,7 @@ export class KiwiKifuUI {
       if (this.scoringMode) this.exitScoringMode();
       this.activeGameId = null;
       this.game.reset();
+      this.game.setMode('recording');
       this.gestures.resetZoom();
       this.saveCurrentGame();
       this.render();
@@ -571,6 +643,9 @@ export class KiwiKifuUI {
     // Badges
     if (this.badgeBlackName) this.badgeBlackName.textContent = this.game.info.blackName || 'Black';
     if (this.badgeWhiteName) this.badgeWhiteName.textContent = this.game.info.whiteName || 'White';
+
+    this.updateModeUI();
+    this.updateBranchBarUI();
   }
 
   handleTapAt(clientX, clientY) {
@@ -585,6 +660,25 @@ export class KiwiKifuUI {
     if (this.editingMove) {
       this.handleEditMoveTap(pt.x, pt.y);
       return;
+    }
+
+    // In Review Mode: check if user tapped an existing variation letter marker
+    if (this.game.mode === 'review' && typeof this.game.getBranchesAtCurrent === 'function') {
+      const branches = this.game.getBranchesAtCurrent();
+      if (branches && branches.length > 1) {
+        const branchMatch = branches.find(b => b.coord && b.coord.x === pt.x && b.coord.y === pt.y);
+        if (branchMatch) {
+          if (this.pendingMove) {
+            this.pendingMove = null;
+            this.hideConfirmBar();
+          }
+          this.game.switchToBranch(branchMatch.index);
+          this.sound.playStone();
+          this.saveCurrentGame();
+          this.render();
+          return;
+        }
+      }
     }
 
     if (this.tapMode === 'confirm') {
@@ -616,6 +710,162 @@ export class KiwiKifuUI {
     this.sound.playStone();
     this.saveCurrentGame();
     this.render();
+  }
+
+  toggleMode() {
+    if (this.game.mode === 'recording') {
+      this.setMode('review');
+    } else {
+      if (this.game.hasBranches()) {
+        this.modalConfirmRecording?.classList.remove('hidden');
+      } else {
+        this.setMode('recording');
+      }
+    }
+  }
+
+  setMode(mode) {
+    this.game.setMode(mode);
+    this.updateModeUI();
+    this.render();
+    this.showToast(mode === 'review' ? 'Review Mode enabled 🔍' : 'Recording Mode enabled ⏺️');
+  }
+
+  updateModeUI() {
+    const isReview = this.game.mode === 'review';
+    const appEl = document.getElementById('app');
+    if (appEl) {
+      if (isReview) {
+        appEl.classList.add('review-mode');
+        appEl.classList.remove('recording-mode');
+      } else {
+        appEl.classList.add('recording-mode');
+        appEl.classList.remove('review-mode');
+      }
+    }
+
+    if (!this.editingMove) {
+      if (this.branchModeDot) {
+        this.branchModeDot.textContent = '●';
+      }
+      if (this.branchModeText) {
+        this.branchModeText.textContent = isReview
+          ? 'Review mode'
+          : 'Recording mode — single branch, overwrites moves';
+      }
+      if (this.branchModeBanner) {
+        this.branchModeBanner.setAttribute('title', isReview
+          ? 'Review mode: playing at past moves creates variations (click to toggle)'
+          : 'Recording mode: playing will overwrite subsequent moves (click to toggle)');
+      }
+    }
+
+    if (this.menuModeText) {
+      this.menuModeText.textContent = 'Review Mode';
+    }
+    if (this.menuModeBadge) {
+      this.menuModeBadge.textContent = isReview ? 'ON' : 'OFF';
+      if (isReview) {
+        this.menuModeBadge.classList.add('active');
+      } else {
+        this.menuModeBadge.classList.remove('active');
+      }
+    }
+  }
+
+  updateBranchBarUI() {
+    if (this.scoringMode || this.editingMove) {
+      this.branchViewerBar?.classList.add('hidden');
+      return;
+    }
+
+    const branchInfo = typeof this.game.getCurrentBranchInfo === 'function' ? this.game.getCurrentBranchInfo() : null;
+    const branches = typeof this.game.getBranchesAtCurrent === 'function' ? this.game.getBranchesAtCurrent() : [];
+
+    if (branchInfo) {
+      // Viewing inside a variation branch
+      this.branchViewerBar?.classList.remove('hidden');
+      if (this.btnReturnMainline) {
+        this.btnReturnMainline.classList.remove('hidden');
+      }
+      if (this.branchLabelBadge) {
+        this.branchLabelBadge.classList.remove('hidden');
+        this.branchLabelBadge.textContent = `Branch ${branchInfo.branchLetter}`;
+      }
+      if (this.branchForkPills) {
+        this.branchForkPills.innerHTML = '';
+      }
+      if (this.branchDotsContainer) {
+        this.branchDotsContainer.innerHTML = '';
+        branchInfo.branchNodes.forEach((node, idx) => {
+          const dot = document.createElement('button');
+          dot.className = `branch-dot ${idx === branchInfo.currentBranchIndex ? 'active' : ''}`;
+          dot.setAttribute('title', `Move #${node.step}`);
+          dot.setAttribute('aria-label', `Move ${node.step}`);
+
+          dot.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.game.jumpToStep(node.step);
+            this.render();
+          });
+
+          let longPressTimer = null;
+          dot.addEventListener('pointerdown', () => {
+            longPressTimer = setTimeout(() => {
+              this.openBranchActionsModal(node);
+            }, 450);
+          });
+          const cancelLongPress = () => clearTimeout(longPressTimer);
+          dot.addEventListener('pointerup', cancelLongPress);
+          dot.addEventListener('pointercancel', cancelLongPress);
+          dot.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            this.openBranchActionsModal(node);
+          });
+
+          this.branchDotsContainer.appendChild(dot);
+        });
+      }
+    } else if (branches && branches.length > 1) {
+      // At a fork point on the main line
+      this.branchViewerBar?.classList.remove('hidden');
+      if (this.btnReturnMainline) {
+        this.btnReturnMainline.classList.add('hidden');
+      }
+      if (this.branchLabelBadge) {
+        this.branchLabelBadge.classList.add('hidden');
+      }
+      if (this.branchDotsContainer) {
+        this.branchDotsContainer.innerHTML = '';
+      }
+      if (this.branchForkPills) {
+        this.branchForkPills.innerHTML = '';
+        branches.forEach(b => {
+          const pill = document.createElement('button');
+          pill.className = `branch-fork-pill ${b.index === 0 ? 'active' : ''}`;
+          pill.textContent = b.index === 0 ? `${b.letter} (Main)` : `Branch ${b.letter}`;
+          pill.addEventListener('click', () => {
+            this.game.switchToBranch(b.index);
+            this.sound.playStone();
+            this.render();
+          });
+          this.branchForkPills.appendChild(pill);
+        });
+      }
+    } else {
+      this.branchViewerBar?.classList.add('hidden');
+    }
+  }
+
+  openBranchActionsModal(node) {
+    if (!node) return;
+    this.selectedBranchNode = node;
+    const branchInfo = this.game.getCurrentBranchInfo();
+    const branchLetter = branchInfo ? branchInfo.branchLetter : 'B';
+    if (this.branchActionDesc) {
+      this.branchActionDesc.textContent = `Branch ${branchLetter} • Move #${node.step}`;
+    }
+    this.modalBranchActions?.classList.remove('hidden');
   }
 
   handleLongPressAt(clientX, clientY) {
@@ -888,6 +1138,7 @@ export class KiwiKifuUI {
       if (this.scoringMode) this.exitScoringMode();
       this.activeGameId = null;
       this.game.reset();
+      this.game.setMode('recording');
       this.gestures.resetZoom();
       this.saveCurrentGame();
       this.render();
@@ -930,6 +1181,7 @@ export class KiwiKifuUI {
     // Hide standard play controls and show scoring panel
     this.bottomControls?.classList.add('hidden');
     this.commentBar?.classList.add('hidden');
+    this.branchViewerBar?.classList.add('hidden');
     this.confirmBar?.classList.add('hidden');
     this.scoringPanel?.classList.remove('hidden');
 

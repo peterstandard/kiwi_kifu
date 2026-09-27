@@ -60,7 +60,8 @@ export class BoardRenderer {
 
     // 1. Render Wood Base
     if (this.woodGroup) {
-      this.woodGroup.innerHTML = `<rect width="${width}" height="${height}" fill="url(#wood-grad)" />`;
+      const woodFill = game.mode === 'review' ? 'url(#wood-grad-review)' : 'url(#wood-grad)';
+      this.woodGroup.innerHTML = `<rect width="${width}" height="${height}" fill="${woodFill}" />`;
     }
 
     // 2. Render Grid Lines
@@ -202,6 +203,30 @@ export class BoardRenderer {
       const ghostColor = ghostPlayer === 1 ? 'rgba(20, 20, 20, 0.65)' : 'rgba(255, 255, 255, 0.85)';
       const ghostStroke = ghostPlayer === 1 ? '#fff' : '#000';
       markersSvg += `<circle cx="${cx}" cy="${cy}" r="${stoneRadius}" fill="${ghostColor}" stroke="${ghostStroke}" stroke-width="1.5" stroke-dasharray="3 3" filter="url(#ghost-shadow)" pointer-events="none" />`;
+    }
+
+    // Variation branch markers (A, B, C...) on next moves in Review Mode
+    if (!isScoring && game.mode === 'review' && typeof game.getBranchesAtCurrent === 'function') {
+      const branches = game.getBranchesAtCurrent();
+      if (branches && branches.length > 1) {
+        const nextTurn = game.turn;
+        for (const b of branches) {
+          if (b.coord && b.coord.x !== null && b.coord.y !== null) {
+            const { x, y } = b.coord;
+            const cx = margin + x * cellSize;
+            const cy = margin + y * cellSize;
+            const isBlack = nextTurn === 1;
+            const badgeBg = isBlack ? '#1e293b' : '#f8fafc';
+            const badgeText = isBlack ? '#a3e635' : '#142007';
+            const badgeBorder = '#88C13F';
+
+            markersSvg += `<g class="branch-letter-marker" data-branch-index="${b.index}" style="cursor: pointer;">`;
+            markersSvg += `<circle cx="${cx}" cy="${cy}" r="${stoneRadius * 0.78}" fill="${badgeBg}" stroke="${badgeBorder}" stroke-width="2.5" filter="drop-shadow(0 2px 5px rgba(0,0,0,0.5))" />`;
+            markersSvg += `<text x="${cx}" y="${cy}" text-anchor="middle" dominant-baseline="central" font-size="${stoneRadius * 0.85}" font-weight="800" font-family="-apple-system, BlinkMacSystemFont, sans-serif" fill="${badgeText}" pointer-events="none">${b.letter}</text>`;
+            markersSvg += `</g>`;
+          }
+        }
+      }
     }
 
     if (this.stonesGroup) this.stonesGroup.innerHTML = stonesSvg;

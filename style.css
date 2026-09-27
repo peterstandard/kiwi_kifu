@@ -44,11 +44,8 @@
 }
 
 html, body {
-  height: 100%;
-  height: 100dvh;
   margin: 0;
   padding: 0;
-  overflow: hidden;
 }
 
 body {
@@ -56,23 +53,24 @@ body {
   background-color: var(--bg-main);
   color: var(--text-main);
   line-height: 1.4;
+  min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
+  overflow-x: hidden;
   user-select: none;
   -webkit-user-select: none;
-  overscroll-behavior: none;
 }
 
 #app {
   display: flex;
   flex-direction: column;
-  height: 100%;
-  height: 100dvh;
+  min-height: 100vh;
+  min-height: 100dvh;
   max-width: 600px;
   margin: 0 auto;
   width: 100%;
   position: relative;
-  overflow: hidden;
 }
 
 /* Header */
@@ -411,17 +409,15 @@ body {
 
 /* Board Container */
 .board-container {
-  flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  padding: 2px 8px 4px 8px;
-  overflow: hidden;
+  padding: 6px 8px 4px 8px;
   background-color: transparent;
   position: relative;
-  min-height: 0;
-  container-type: size;
+  flex-shrink: 0;
+  width: 100%;
 }
 
 .board-top-bar {
@@ -430,10 +426,10 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0 2px 4px 2px;
+  padding: 2px 2px 6px 2px;
   flex-shrink: 0;
   gap: 8px;
-  height: 28px;
+  min-height: 36px;
 }
 
 .branch-mode-banner {
@@ -491,6 +487,8 @@ body {
 .review-mode .board-aspect-box {
   border-color: var(--review-accent);
   box-shadow: 0 0 18px var(--review-accent-glow), 0 8px 30px rgba(0, 0, 0, 0.7);
+  width: min(100%, 540px, calc(100dvh - 360px));
+  max-height: calc(100dvh - 360px);
 }
 
 /* Recording Mode Banner & Frame */
@@ -522,8 +520,9 @@ body {
 
 .board-aspect-box {
   width: 100%;
+  width: min(100%, 540px, calc(100dvh - 310px));
   max-width: 540px;
-  max-height: calc(100% - 34px);
+  max-height: calc(100dvh - 310px);
   aspect-ratio: 1 / 1;
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.7);
   border-radius: 4px;
@@ -532,18 +531,6 @@ body {
   border: 2px solid var(--wood-border);
   position: relative;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
-}
-
-@supports (width: 100cqh) {
-  .board-aspect-box {
-    width: min(100%, 540px, calc(100cqh - 34px));
-    max-height: calc(100cqh - 34px);
-  }
-
-  .review-mode .board-aspect-box {
-    width: min(100%, 540px, calc(100cqh - 78px));
-    max-height: calc(100cqh - 78px);
-  }
 }
 
 .go-board-svg {
@@ -692,19 +679,17 @@ body {
 .branch-viewer-bar {
   display: flex;
   align-items: center;
-  padding: 2px 8px;
+  padding: 4px 10px;
   background: var(--bg-surface);
-  border: 1px solid var(--border-color);
-  border-top: none;
-  border-radius: 0 0 6px 6px;
+  border-top: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
   gap: 8px;
-  min-height: 38px;
-  max-height: 48px;
+  min-height: 44px;
+  max-height: 64px;
   width: 100%;
-  max-width: 540px;
   flex-shrink: 0;
   overflow: hidden;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  box-sizing: border-box;
 }
 
 .branch-viewer-bar.hidden {
@@ -718,9 +703,9 @@ body {
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid var(--border-color);
   color: var(--almond);
-  font-size: 0.7rem;
+  font-size: 0.72rem;
   font-weight: 600;
-  padding: 3px 8px;
+  padding: 4px 8px;
   border-radius: 4px;
   cursor: pointer;
   transition: all 0.15s ease;
@@ -747,6 +732,7 @@ body {
   display: flex;
   align-items: center;
   height: 100%;
+  min-height: 36px;
 }
 
 .branch-graph-scroll-wrap::-webkit-scrollbar {

@@ -11,9 +11,9 @@ export class BranchGraph {
     this.onActionNode = options.onActionNode || (() => {});
 
     this.STEP_X = 22;
-    this.LANE_Y = 16;
+    this.LANE_Y = 14;
     this.PAD_X = 14;
-    this.PAD_Y = 12;
+    this.PAD_Y = 10;
   }
 
   computeLayout(rootNode) {

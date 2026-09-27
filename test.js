@@ -1030,19 +1030,20 @@ await test('KiwiKifuUI: closeDropdown and toggleDropdownMenu manage menu visibil
   assert.strictEqual(mockDropdown.classList.contains('hidden'), true, 'Menu is closed via closeDropdown');
 });
 
-await test('Layout & Scrolling Invariant: style.css prevents viewport scrolling and ensures contained sizing', () => {
+await test('Layout & Mobile Ergonomics: pull-to-refresh enabled, breathing room for zoom buttons, and safe sizing', () => {
   const css = fs.readFileSync('./style.css', 'utf8');
 
-  // Verify html and body prevent vertical scrolling
-  assert.ok(css.includes('html, body'), 'html and body are styled together');
-  assert.ok(/html,\s*body\s*\{[^}]*overflow:\s*hidden/s.test(css), 'html and body have overflow: hidden');
+  // Verify body allows vertical pull-to-refresh without overflow: hidden blocking it
+  assert.ok(!/body\s*\{[^}]*overflow:\s*hidden/s.test(css), 'body does not have overflow: hidden');
+  assert.ok(!/body\s*\{[^}]*overscroll-behavior:\s*none/s.test(css), 'body does not disable overscroll');
+  assert.ok(css.includes('overflow-x: hidden'), 'body prevents horizontal overflow');
 
-  // Verify #app is contained within 100dvh without overflow
-  assert.ok(/#app\s*\{[^}]*height:\s*100dvh/s.test(css), '#app specifies 100dvh');
-  assert.ok(/#app\s*\{[^}]*overflow:\s*hidden/s.test(css), '#app specifies overflow: hidden');
+  // Verify board aspect box uses dvh dynamic viewport containment
+  assert.ok(css.includes('calc(100dvh - 310px)'), 'board-aspect-box uses calc(100dvh - 310px)');
 
-  // Verify board aspect box uses safe calc to avoid container overflow
-  assert.ok(css.includes('calc(100cqh - 34px)'), 'board-aspect-box uses calc(100cqh - 34px)');
+  // Verify board-top-bar has breathing room so zoom buttons are not clipped
+  assert.ok(/board-top-bar\s*\{[^}]*min-height:\s*36px/s.test(css), 'board-top-bar has min-height: 36px');
+  assert.ok(/board-container\s*\{[^}]*padding:\s*6px/s.test(css), 'board-container has top breathing room');
 
   // Verify board-container eliminates vertical empty voids
   assert.ok(/board-container\s*\{[^}]*justify-content:\s*flex-start/s.test(css), 'board-container aligns to flex-start');
@@ -1052,7 +1053,7 @@ await test('Layout & Scrolling Invariant: style.css prevents viewport scrolling 
   assert.ok(css.includes('env(safe-area-inset-bottom'), 'bottom-controls supports safe-area-inset-bottom');
 });
 
-await test('Review Mode Theme & DOM Structure: warm grayish-brown wood saturation and docked branch viewer', () => {
+await test('Review Mode Theme & DOM Structure: warm grayish-brown wood saturation and separate branch viewer', () => {
   const html = fs.readFileSync('./index.html', 'utf8');
   const css = fs.readFileSync('./style.css', 'utf8');
 
@@ -1061,15 +1062,14 @@ await test('Review Mode Theme & DOM Structure: warm grayish-brown wood saturatio
   assert.ok(css.includes('--wood-bg-review: #cbb196;'), 'style.css defines --wood-bg-review as #cbb196');
   assert.ok(!css.includes('--wood-bg-review: #d1c7b7;'), 'style.css no longer uses cement gray #d1c7b7');
 
-  // Verify branch-viewer-bar is docked inside board-container directly below board-aspect-box
+  // Verify branch-viewer-bar is a separate sibling directly following board-container main tag
   const boardAspectIndex = html.indexOf('class="board-aspect-box"');
   const branchViewerIndex = html.indexOf('id="branch-viewer-bar"');
   const boardCloseTagIndex = html.indexOf('</main>');
 
   assert.ok(boardAspectIndex !== -1, 'board-aspect-box found');
   assert.ok(branchViewerIndex !== -1, 'branch-viewer-bar found');
-  assert.ok(branchViewerIndex > boardAspectIndex, 'branch-viewer-bar is placed after board-aspect-box');
-  assert.ok(branchViewerIndex < boardCloseTagIndex, 'branch-viewer-bar is docked inside board-container');
+  assert.ok(branchViewerIndex > boardCloseTagIndex, 'branch-viewer-bar is outside board-container (not covered by board)');
 });
 
 console.log(`\nAll ${passed} invariant tests passed! 🎯\n`);
